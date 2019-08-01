@@ -19,12 +19,10 @@ class ImageWindow:
 
         
     def imageCallback(self, data):
-        print('callback')
         try:
             self.img = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             print(e)
-        print('callback2')
         if self.preview:
             cv2.imshow(self.w_name, self.img)
             cv2.waitKey(1)
