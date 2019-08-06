@@ -112,6 +112,10 @@ class RandomBot():
         twist.linear.x  = linear # 0.2
         twist.angular.z = angle  #   1
         
+        if self.timer < 7:
+             twist.linear.x  = 0.2
+             twist.angular.z =   0
+        
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
         self.state = next_state                                    # 状態更新
@@ -132,10 +136,15 @@ class RandomBot():
 
     # シュミレーション再開
     def restart(self, r):
-        self.memory.reset()
         subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/init_single_play.sh ../catkin_ws/src/burger_war/judge/marker_set/sim.csv localhost:5000 you enemy', shell=True)
+        subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True)
+        subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
+        #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
+        self.memory.reset()
         r.sleep()
-        self.timer    = 0
+        self.timer = 0
+
+#roslaunch burger_war sim_robot_run2.launch
 
 
     def strategy(self):
@@ -161,8 +170,8 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            if abs(self.reward) == 1 or self.timer > 180:
-            #if abs(self.reward) == 1 or self.timer > 18:
+            #if abs(self.reward) == 1 or self.timer > 180:
+            if abs(self.reward) == 1 or self.timer > 18:
                 if   self.reward == 0 : print('Draw')
                 elif self.reward == 1 : print('Win!')
                 else                  : print('Lose')
