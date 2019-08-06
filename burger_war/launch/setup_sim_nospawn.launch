@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+
+<launch>
+
+<!-- blue side robot -->
+  <group ns="blue_bot">
+      <!-- ar reader -->
+     <node pkg="aruco_ros" type="marker_publisher" name="aruco_marker_publisher">
+            <param name="use_camera_info" value="False"/>
+            <remap from="/image" to="image_raw" />
+            <remap from="/blue_bot/aruco_marker_publisher/markers" to="target_id" />
+     </node>
+
+      <!-- send target ID to judge server -->
+      <node pkg="burger_war" type="sendIdToJudge.py" name="send_id_to_judge" output="screen">
+        <param name="judge_url" value="http://127.0.0.1:5000" />
+        <param name="player_name" value="blue_bot" />
+        <param name="side" value="b" />
+      </node>
+
+  </group>
+
+<!-- red side robot -->
+    <group ns="red_bot">
+      <!-- ar reader -->
+      <node pkg="aruco_ros" type="marker_publisher" name="aruco_marker_publisher">
+          <param name="use_camera_info" value="False"/>
+          <remap from="/image" to="image_raw" />
+          <remap from="/red_bot/aruco_marker_publisher/markers" to="target_id" />
+      </node>
+
+      <!-- send target ID to judge server -->
+      <node pkg="burger_war" type="sendIdToJudge.py" name="send_id_to_judge" output="screen">
+        <param name="judge_url" value="http://127.0.0.1:5000" />
+        <param name="player_name" value="red_bot" />
+        <param name="side" value="r" />
+      </node>
+
+  </group>
+</launch>
