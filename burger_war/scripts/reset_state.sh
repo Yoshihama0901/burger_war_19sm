@@ -1,14 +1,14 @@
 #!/bin/bash
 
 rosservice call /gazebo/reset_simulation "{}"
-bash ../../judge/test_scripts/init_single_play.sh judge/marker_set/sim.csv localhost:5000 you enemy
-rosnode kill /blue_bot/aruco_marker_publisher
-rosnode kill /blue_bot/send_id_to_judge
-rosnode kill /red_bot/aruco_marker_publisher
-rosnode kill /red_bot/imageView
-rosnode kill /red_bot/send_id_to_judge
-# kill `ps auxww | grep '/usr/bin/python /opt/ros/kinetic/bin/roslaunch burger_war sim_robot_run.launch'| grep -v grep | awk '{ print $2}'| tail -1`
-# sleep 20
+bash ../../judge/test_scripts/init_single_play.sh ../../judge/marker_set/sim.csv localhost:5000 you enemy
+# rosnode kill /blue_bot/aruco_marker_publisher
+# rosnode kill /blue_bot/send_id_to_judge
+# rosnode kill /red_bot/aruco_marker_publisher
+# rosnode kill /red_bot/imageView
+# rosnode kill /red_bot/send_id_to_judge
+kill `ps auxww | grep '/usr/bin/python /opt/ros/kinetic/bin/roslaunch burger_war sim_robot_run.launch'| grep -v grep | awk '{ print $2}'| tail -1`
+sleep 20
 roslaunch burger_war setup_sim_nospawn.launch &
 bash ../../judge/test_scripts/set_running.sh localhost:5000
 roslaunch burger_war sim_robot_run.launch &
