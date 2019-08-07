@@ -23,6 +23,63 @@ def quaternion_to_euler(quaternion):
     return Vector3(x=e[0]*180/np.pi, y=e[1]*180/np.pi, z=e[2]*180/np.pi)
 
 
+# 座標回転行列を返す
+def get_rotation_matrix(rad):
+    rot = np.array([[np.cos(rad), -np.sin(rad)], [np.sin(rad), np.cos(rad)]])
+    return rot
+
+
+# 現在地を２次元ベクトル(n*n)にして返す
+def get_pos_matrix(x, y, n=16):
+    #my_pos  = np.array([self.pos[0], self.pos[1]])  # 現在地点
+    pos     = np.array([x, y])                      # 現在地点
+    rot     = get_rotation_matrix(45 * np.pi / 180) # 45度回転行列の定義
+    rotated = ( np.dot(rot, pos) / 3.4 ) + 0.5      # 45度回転して最大幅1.7で正規化(0-1)
+    pos_np  = np.zeros([n, n])
+    pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
+    return pos_np
+
+
+# 自分が向いている向きを２次元ベクトル(n*n)にして返す
+def get_ang_matrix(my_pos, angle, n=16):
+    #angle = my_angle.z + 22.5
+    while angle > 0 : angle -= 360
+    while angle < 0 : angle += 360
+    #print(angle)
+    my_ang  = np.zeros([n, n])
+    my_pos_x = np.where(my_pos==1)[0][0]
+    my_pos_y = np.where(my_pos==1)[1][0]
+    if   0 <= angle <  45 : my_ang[my_pos_x+1, my_pos_y+1] = 1
+    if  45 <= angle <  90 : my_ang[my_pos_x+0, my_pos_y+1] = 1
+    if  90 <= angle < 135 : my_ang[my_pos_x-1, my_pos_y+1] = 1
+    if 135 <= angle < 180 : my_ang[my_pos_x-1, my_pos_y+0] = 1
+    if 180 <= angle < 225 : my_ang[my_pos_x-1, my_pos_y-1] = 1
+    if 225 <= angle < 270 : my_ang[my_pos_x+0, my_pos_y-1] = 1
+    if 270 <= angle < 315 : my_ang[my_pos_x+1, my_pos_y-1] = 1
+    if 315 <= angle < 360 : my_ang[my_pos_x+1, my_pos_y+0] = 1
+    return my_ang
+
+
+# 得点ベクトルを返す
+def get_sco_matrix(score, point):
+    #point = 1
+    np_sco = np.zeros([16, 16])
+    if score[8]  == point : np_sco[ 3,  8] = 1   #  8:Tomato_N
+    if score[9]  == point : np_sco[ 4,  7] = 1   #  9:Tomato_S
+    if score[10] == point : np_sco[ 7, 12] = 1   # 10:Omelette_N
+    if score[11] == point : np_sco[ 8, 11] = 1   # 11:Omelette_S
+    if score[12] == point : np_sco[ 7,  4] = 1   # 12:Pudding_N
+    if score[13] == point : np_sco[ 8,  3] = 1   # 13:Pudding_S
+    if score[14] == point : np_sco[11,  8] = 1   # 14:OctopusWiener_N
+    if score[15] == point : np_sco[12,  7] = 1   # 15:OctopusWiener_S
+    if score[16] == point : np_sco[ 7,  8] = 1   # 16:FriedShrimp_N
+    if score[17] == point : np_sco[ 7,  7] = 1   # 17:FriedShrimp_E
+    if score[18] == point : np_sco[ 8,  8] = 1   # 18:FriedShrimp_W
+    if score[19] == point : np_sco[ 8,  7] = 1   # 19:FriedShrimp_S
+    return np_sco
+
+
+
 class RandomBot():
     def __init__(self, bot_name, color='r'):
         self.name     = bot_name                                        # bot name 
@@ -48,6 +105,7 @@ class RandomBot():
         self.score[0] = json_dict['scores'][self.my_color] # 自分のスコア
         self.score[1] = json_dict['scores'][self.en_color] # 相手のスコア
         for i in range(18):
+            #print('*********', len(json_dict['targets']))
             player = json_dict['targets'][i]['player']
             if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
             if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
@@ -56,6 +114,7 @@ class RandomBot():
     
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
+        #print('*********', len(data.pose))
         pos = data.pose[37].position;    self.pos[0] = pos.x; self.pos[1] = pos.y;
         ori = data.pose[37].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
         pos = data.pose[36].position;    self.pos[6] = pos.x; self.pos[7] = pos.y;
@@ -88,21 +147,22 @@ class RandomBot():
         
         self.timer += 1
         
-        # 審判情報の更新
+        # 審判情報の更新(点数)
         rospy.Subscriber("war_state", String, self.callback_war_state)
-        score = ''
-        for a in self.score : score += str(int(a)) + ' '
-        #print('Score : ', score)
+        my_sco = get_sco_matrix(self.score,  1)
+        en_sco = get_sco_matrix(self.score, -1)
         
         # 位置情報
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state)
-        my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4],  self.pos[5] ))
-        en_angle = quaternion_to_euler(Quaternion(self.pos[8], self.pos[9], self.pos[10], self.pos[11]))
-        #print('  Pos   : my-pos(%4.2f, %4.2f) my-angle(%4.0f), en-pos(%4.2f, %4.2f) en-angle(%4.0f)' % (self.pos[0], self.pos[1], my_angle.z, self.pos[6], self.pos[7], en_angle.z))
+        my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
+        my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自位置
+        en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 敵位置
+        my_ang = get_ang_matrix(my_pos, my_angle.z + 22.5) # 自分の向き
+        #print(my_pos)
         
         # 状態と報酬の更新
         next_state = np.concatenate([self.pos[:8], self.score])
-        next_state = np.reshape(next_state, [1, 28])          # 現在の状態(自分と相手の位置、点数)
+        next_state = np.reshape(next_state, [1, 28])       # 現在の状態(自分と相手の位置、点数)
         reward     =  self.calc_reward()
         
         # 行動を決定する
@@ -112,9 +172,11 @@ class RandomBot():
         twist.linear.x  = linear # 0.2
         twist.angular.z = angle  #   1
         
-        if self.timer < 7:
+        #if self.timer < 7:
+        if self.timer < 0:
              twist.linear.x  = 0.2
              twist.angular.z =   0
+        
         
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
@@ -137,7 +199,7 @@ class RandomBot():
     # シュミレーション再開
     def restart(self, r):
         subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/init_single_play.sh ../catkin_ws/src/burger_war/judge/marker_set/sim.csv localhost:5000 you enemy', shell=True)
-        subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True)
+        # subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True) # 位置のリセット
         subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
         #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
         self.memory.reset()
@@ -170,8 +232,8 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            #if abs(self.reward) == 1 or self.timer > 180:
-            if abs(self.reward) == 1 or self.timer > 18:
+            if abs(self.reward) == 1 or self.timer > 180:
+            #if abs(self.reward) == 1 or self.timer > 10:
                 if   self.reward == 0 : print('Draw')
                 elif self.reward == 1 : print('Win!')
                 else                  : print('Lose')
