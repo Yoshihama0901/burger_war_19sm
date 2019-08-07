@@ -8,6 +8,7 @@ import rospy
 import random
 import subprocess
 import numpy as np
+import sys
 
 from std_msgs.msg import String
 from gazebo_msgs.msg import ModelStates
@@ -191,6 +192,7 @@ class RandomBot():
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         
         print('Time:%3.0f  Reward:%3.1f  Linar:%4.1f  Angle:%2.0f' % (self.timer, reward, twist.linear.x, twist.angular.z))
+        sys.stdout.flush()
         self.reward = reward
         
         return twist
@@ -198,10 +200,11 @@ class RandomBot():
 
     # シュミレーション再開
     def restart(self, r):
-        subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/init_single_play.sh ../catkin_ws/src/burger_war/judge/marker_set/sim.csv localhost:5000 you enemy', shell=True)
+        # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/init_single_play.sh ../catkin_ws/src/burger_war/judge/marker_set/sim.csv localhost:5000 you enemy', shell=True)
         # subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True) # 位置のリセット
-        subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
+        # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
         #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
+        subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
         self.memory.reset()
         r.sleep()
         self.timer = 0
@@ -232,7 +235,7 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            if abs(self.reward) == 1 or self.timer > 180:
+            if abs(self.reward) == 1 or self.timer > 30:
             #if abs(self.reward) == 1 or self.timer > 10:
                 if   self.reward == 0 : print('Draw')
                 elif self.reward == 1 : print('Win!')
