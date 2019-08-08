@@ -100,7 +100,7 @@ class WarStatePublisher(object):
     def __init__(self, judge_url):
         # target ID  val subscriver
         self.judge_url = judge_url
-        self.vel_pub = rospy.Publisher('war_state', String, queue_size=1)
+        self.vel_pub = rospy.Publisher('war_state', String, queue_size=1, latch=True)
 
     def publishWarState(self):
         resp = requests.get(self.judge_url)

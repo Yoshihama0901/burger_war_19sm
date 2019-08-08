@@ -85,7 +85,7 @@ class RandomBot():
     def __init__(self, bot_name, color='r'):
         self.name     = bot_name                                        # bot name 
         self.vel_pub  = rospy.Publisher('cmd_vel', Twist, queue_size=1) # velocity publisher
-        self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates) # 初期化用
+        self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates, latch=True) # 初期化用
         self.state    = np.reshape(np.zeros(28), [1, 28])               # 状態
         self.timer    = 0                                               # 対戦時間
         self.reward   = 0.0                                             # 報酬
@@ -149,12 +149,12 @@ class RandomBot():
         self.timer += 1
         
         # 審判情報の更新(点数)
-        rospy.Subscriber("war_state", String, self.callback_war_state)
+        rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
         my_sco = get_sco_matrix(self.score,  1)
         en_sco = get_sco_matrix(self.score, -1)
         
         # 位置情報
-        rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state)
+        rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
         my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自位置
         en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 敵位置
