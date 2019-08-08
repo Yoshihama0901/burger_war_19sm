@@ -86,7 +86,8 @@ class RandomBot():
         self.name     = bot_name                                        # bot name 
         self.vel_pub  = rospy.Publisher('cmd_vel', Twist, queue_size=1) # velocity publisher
         self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates, latch=True) # 初期化用
-        self.state    = np.reshape(np.zeros(28), [1, 28])               # 状態
+        #self.state    = np.reshape(np.zeros(28), [1, 28])               # 状態
+        self.state    = np.zeros([1, 16, 16, 9])           # 状態
         self.timer    = 0                                               # 対戦時間
         self.reward   = 0.0                                             # 報酬
         self.my_color = color                                           # 自分の色情報
@@ -148,23 +149,35 @@ class RandomBot():
         
         self.timer += 1
         
-        # 審判情報の更新(点数)
-        rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
-        my_sco = get_sco_matrix(self.score,  1)
-        en_sco = get_sco_matrix(self.score, -1)
-        
         # 位置情報
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
-        my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自位置
-        en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 敵位置
+        my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
+        en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
         my_ang = get_ang_matrix(my_pos, my_angle.z + 22.5) # 自分の向き
         #print(my_pos)
         
-        # 状態と報酬の更新
-        next_state = np.concatenate([self.pos[:8], self.score])
-        next_state = np.reshape(next_state, [1, 28])       # 現在の状態(自分と相手の位置、点数)
-        reward     =  self.calc_reward()
+        # 審判情報の更新(点数)
+        rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
+        my_sco      = get_sco_matrix(self.score,  1)                           # 自分の点数
+        en_sco      = get_sco_matrix(self.score, -1)                           # 相手の点数
+        mySide1_sco = my_pos if not self.score[6] == 0 else np.zeros([16, 16]) # 自分側面１の点数
+        mySide2_sco = my_pos if not self.score[7] == 0 else np.zeros([16, 16]) # 自分側面２の点数
+        enSide1_sco = en_pos if not self.score[3] == 0 else np.zeros([16, 16]) # 相手側面１の点数
+        enSide2_sco = en_pos if not self.score[4] == 0 else np.zeros([16, 16]) # 相手側面２の点数
+        
+        # 状態と報酬の更新( 16 × 16 × 9ch )
+        next_state = np.concatenate([np.expand_dims(my_pos,      axis=2),
+                                     np.expand_dims(en_pos,      axis=2),
+                                     np.expand_dims(my_ang,      axis=2),
+                                     np.expand_dims(my_sco,      axis=2),
+                                     np.expand_dims(en_sco,      axis=2),
+                                     np.expand_dims(mySide1_sco, axis=2),
+                                     np.expand_dims(mySide2_sco, axis=2),
+                                     np.expand_dims(enSide1_sco, axis=2),
+                                     np.expand_dims(enSide2_sco, axis=2)], axis=2)
+        next_state = np.reshape(next_state, [1, 16, 16, 9])       # 現在の状態(自分と相手の位置、点数)
+        reward     =  self.calc_reward()                          # 報酬
         
         # 行動を決定する
         action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
@@ -174,10 +187,8 @@ class RandomBot():
         twist.angular.z = angle  #   1
         
         #if self.timer < 7:
-        if self.timer < 0:
-             twist.linear.x  = 0.2
-             twist.angular.z =   0
-        
+        #     twist.linear.x  = 0.2
+        #     twist.angular.z =   0
         
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
@@ -185,7 +196,8 @@ class RandomBot():
         
         # Qネットワークの重みを学習・更新する replay
         learn = 1         # 学習を行うかのフラグ
-        batch_size = 32   # Q-networkを更新するバッチの大きさ
+        #batch_size = 32   # Q-networkを更新するバッチの大きさ
+        batch_size = 10   # Q-networkを更新するバッチの大きさ
         gamma = 0.99      # 割引係数
         if (self.memory.len() > batch_size) and learn:
             self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
@@ -204,10 +216,10 @@ class RandomBot():
         # subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True) # 位置のリセット
         # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
         #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
+        self.timer = 0
         subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
         self.memory.reset()
         r.sleep()
-        self.timer = 0
 
 #roslaunch burger_war sim_robot_run2.launch
 
@@ -218,15 +230,14 @@ class RandomBot():
         r = rospy.Rate(rospy_Rate) # １秒間に送る送信回数 (change speed 1fps)
         
         # Qネットワークとメモリ、Actorの生成--------------------------------------------------------
-        hidden_size   = 64              # Q-networkの隠れ層のニューロンの数
         learning_rate = 0.0001          # Q-networkの学習係数
         #learning_rate = 0.00001         # Q-networkの学習係数
         memory_size   = 10000           # バッファーメモリの大きさ
-        self.mainQN   = DQN.QNetwork(hidden_size=hidden_size, learning_rate=learning_rate)   # メインのQネットワーク
-        self.targetQN = DQN.QNetwork(hidden_size=hidden_size, learning_rate=learning_rate)   # 価値を計算するQネットワーク
+        self.mainQN   = DQN.QNetwork(learning_rate=learning_rate)   # メインのQネットワーク
+        self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        self.mainQN.model.load_weights('weight.hdf5')     # 重みの読み込み
+        #self.mainQN.model.load_weights('weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():
@@ -235,8 +246,9 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            if abs(self.reward) == 1 or self.timer > 30:
+            if abs(self.reward) == 1 or self.timer > 180:
             #if abs(self.reward) == 1 or self.timer > 10:
+                self.vel_pub.publish(Twist()) # 動きを止める
                 if   self.reward == 0 : print('Draw')
                 elif self.reward == 1 : print('Win!')
                 else                  : print('Lose')

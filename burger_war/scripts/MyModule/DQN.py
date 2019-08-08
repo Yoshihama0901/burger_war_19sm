@@ -9,10 +9,11 @@ import numpy as np
 from collections import deque
 import tensorflow as tf
 from keras import backend as K
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.optimizers import Adam
 from keras.utils import plot_model
+from keras.models import Model
+from keras.models import Sequential
+from keras.layers import *
+from keras.optimizers import Adam
 
 # 次の行動を決める
 def action_select(action):
@@ -38,23 +39,34 @@ def huberloss(y_true, y_pred):
     return K.mean(loss)
 
 
+def cba(inputs, filters, kernel_size, strides):
+    x = Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = Activation("relu")(x)
+    return x
+
+
 # [2]Q関数をディープラーニングのネットワークをクラスとして定義
 class QNetwork:
-    def __init__(self, learning_rate=0.01, state_size=28, action_size=9, hidden_size=10):
-        self.state_size  = state_size
+    def __init__(self, learning_rate=0.01, action_size=9):
         self.action_size = action_size
-        self.model = Sequential()
-        self.model.add(Dense(hidden_size, activation='relu', input_dim=state_size))
-        self.model.add(Dense(hidden_size, activation='relu'))
-        self.model.add(Dense(action_size, activation='linear'))
+        
+        inputs = Input(shape=(16, 16, 9))
+        x      = cba(inputs, filters= 64, kernel_size=3, strides=1)
+        x      = cba(     x, filters=128, kernel_size=3, strides=1)
+        x      = cba(     x, filters=256, kernel_size=3, strides=1)
+        x      = GlobalAveragePooling2D()(x)
+        output = Dense(9, activation='sigmoid')(x)
+        
+        self.model = Model(inputs=inputs, outputs=output)
+        
         self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
-        # self.model.compile(loss='mse', optimizer=self.optimizer)
         self.model.compile(loss=huberloss, optimizer=self.optimizer)
         self.model.summary()
 
     # 重みの学習
     def replay(self, memory, batch_size, gamma, targetQN):
-        inputs  = np.zeros((batch_size,  self.state_size))
+        inputs  = np.zeros((batch_size, 16, 16, 9))
         targets = np.zeros((batch_size, self.action_size))
         mini_batch = memory.sample(batch_size)
 
@@ -63,7 +75,8 @@ class QNetwork:
             inputs[i:i + 1] = state_b
             target = reward_b
 
-            if not (next_state_b == np.zeros(state_b.shape)).all(axis=1):
+            #if not (next_state_b == np.zeros(state_b.shape)).all(axis=1): # 状態が全部ゼロじゃない場合
+            if 1:
                 # 価値計算（DDQNにも対応できるように、行動決定のQネットワークと価値観数のQネットワークは分離）
                 retmainQs = self.model.predict(next_state_b)[0]
                 next_action = np.argmax(retmainQs)      # 最大の報酬を返す行動を選択する
@@ -73,7 +86,7 @@ class QNetwork:
             targets[i][action_b] = target               # 教師信号
 
         # shiglayさんよりアドバイスいただき、for文の外へ修正しました
-        self.model.fit(inputs, targets, epochs=1, verbose=0)  # epochsは訓練データの反復回数、verbose=0は表示なしの設定
+        self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
 
 
 # [3]Experience ReplayとFixed Target Q-Networkを実現するメモリクラス
