@@ -15,4 +15,3 @@ SERVER_IP=$1
 # set state to "running"
 echo "=================set state "running"======================"
 curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d '{"state":"running"}' ${SERVER_IP}/warState/state
-
