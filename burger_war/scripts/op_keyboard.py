@@ -8,7 +8,6 @@ import rospy
 from geometry_msgs.msg import Twist
 
 import sys, select, termios, tty
-from abstractRulo import *
 
 msg = """
 Reading from the keyboard  and Publishing to Twist!
@@ -61,10 +60,10 @@ speedBindings={
 		'c':(1,.9),
 	      }
 
-class OpKey(AbstractRulo):
+class OpKey():
 	
 	def __init__(self, bot_name):
-		AbstractRulo.__init__(self, bot_name)
+                print(bot_name)
 		
 	def getKey(self):
 		tty.setraw(sys.stdin.fileno())
@@ -128,7 +127,7 @@ class OpKey(AbstractRulo):
 if __name__=="__main__":
 	settings = termios.tcgetattr(sys.stdin)
 	rospy.init_node('teleop_twist_keyboard_red')
-	pub = rospy.Publisher('red_bot/cmd_vel', Twist, queue_size = 1)
+	pub = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
 	
 	op_key = OpKey("op_key")
 	op_key.strategy()
