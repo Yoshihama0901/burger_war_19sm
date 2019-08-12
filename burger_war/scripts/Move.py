@@ -106,13 +106,14 @@ class RandomBot():
         json_dict = json.loads(data.data)                  # json辞書型に変換
         self.score[0] = json_dict['scores'][self.my_color] # 自分のスコア
         self.score[1] = json_dict['scores'][self.en_color] # 相手のスコア
-        for i in range(18):
-            #print('*********', len(json_dict['targets']))
-            player = json_dict['targets'][i]['player']
-            if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
-            if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
-        if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
-            for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+        if json_dict['state'] == 'running':
+            for i in range(18):
+                #print('*********', len(json_dict['targets']))
+                player = json_dict['targets'][i]['player']
+                if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
+                if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
+            if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
+                for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
     
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
@@ -217,6 +218,7 @@ class RandomBot():
         # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
         #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
         self.timer = 0
+        self.reward = 0
         subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
         self.memory.reset()
         r.sleep()
