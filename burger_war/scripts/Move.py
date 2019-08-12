@@ -17,6 +17,7 @@ from geometry_msgs.msg import Twist, Vector3, Quaternion
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
 
+timeScale = 4 # １秒間で何回座標計算するか？
 
 # クォータニオンからオイラー角への変換
 def quaternion_to_euler(quaternion):
@@ -134,7 +135,7 @@ class RandomBot():
         if reward < -1: reward = -1
         
         # 試合終了
-        if self.timer > 180 :
+        if self.timer > 180 * timeScale:
             if self.score[0] > self.score[1] : reward =  1
             if self.score[0] < self.score[1] : reward = -1
         if not self.score[2] == 0 : reward =  1  # 一本勝ち
@@ -181,15 +182,16 @@ class RandomBot():
         reward     =  self.calc_reward()                          # 報酬
         
         # 行動を決定する
-        action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
+        #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
+        action, linear, angle = self.actor.get_action(self.state, self.timer/timeScale, self.mainQN)
         twist = Twist()
         twist.linear.y  = 0; twist.linear.z = 0; twist.angular.x = 0; twist.angular.y = 0
         twist.linear.x  = linear # 0.2
         twist.angular.z = angle  #   1
         
-        #if self.timer < 7:
-        #     twist.linear.x  = 0.2
-        #     twist.angular.z =   0
+        if self.timer < 7:
+             twist.linear.x  = 0.2
+             twist.angular.z =   0
         
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
@@ -204,7 +206,7 @@ class RandomBot():
             self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         
-        print('Time:%3.0f  Reward:%3.1f  Linar:%4.1f  Angle:%2.0f' % (self.timer, reward, twist.linear.x, twist.angular.z))
+        #print('Time:%3.0f  Reward:%3.1f  Linar:%4.1f  Angle:%2.0f' % (self.timer, reward, twist.linear.x, twist.angular.z))
         sys.stdout.flush()
         self.reward = reward
         
@@ -213,22 +215,17 @@ class RandomBot():
 
     # シュミレーション再開
     def restart(self, r):
-        # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/init_single_play.sh ../catkin_ws/src/burger_war/judge/marker_set/sim.csv localhost:5000 you enemy', shell=True)
-        # subprocess.call('rosservice call /gazebo/reset_simulation "{}"', shell=True) # 位置のリセット
-        # subprocess.call('bash ../catkin_ws/src/burger_war/judge/test_scripts/set_running.sh localhost:5000', shell=True)
-        #subprocess.call('roslaunch burger_war sim_robot_run.launch', shell=True)
-        self.timer = 0
+        self.memory.reset()
+        self.score  = np.zeros(20)
+        self.timer  = 0
         self.reward = 0
         subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
-        self.memory.reset()
         r.sleep()
-
-#roslaunch burger_war sim_robot_run2.launch
 
 
     def strategy(self):
         
-        rospy_Rate = 1
+        rospy_Rate = timeScale
         r = rospy.Rate(rospy_Rate) # １秒間に送る送信回数 (change speed 1fps)
         
         # Qネットワークとメモリ、Actorの生成--------------------------------------------------------
@@ -239,7 +236,7 @@ class RandomBot():
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        #self.mainQN.model.load_weights('weight.hdf5')     # 重みの読み込み
+        self.mainQN.model.load_weights('weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():
@@ -248,7 +245,7 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            if abs(self.reward) == 1 or self.timer > 180:
+            if abs(self.reward) == 1 or self.timer > 180 * timeScale:
             #if abs(self.reward) == 1 or self.timer > 10:
                 self.vel_pub.publish(Twist()) # 動きを止める
                 if   self.reward == 0 : print('Draw')

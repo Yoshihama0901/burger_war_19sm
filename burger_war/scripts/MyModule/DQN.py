@@ -56,7 +56,7 @@ class QNetwork:
         x      = cba(     x, filters=128, kernel_size=3, strides=1)
         x      = cba(     x, filters=256, kernel_size=3, strides=1)
         x      = GlobalAveragePooling2D()(x)
-        output = Dense(9, activation='sigmoid')(x)
+        output = Dense(9, activation='softmax')(x)
         
         self.model = Model(inputs=inputs, outputs=output)
         
@@ -118,10 +118,20 @@ class Actor:
         # 徐々に最適行動のみをとる、ε-greedy法
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
-        epsilon = 0.2
+        epsilon = 0.5
 
         if epsilon <= np.random.uniform(0, 1):
             retTargetQs   = mainQN.model.predict(state)[0]
+            print(episode)
+            print('linear = -0.2; angle = -1.0', '%5.2f' % (retTargetQs[0]))
+            print('linear = -0.2; angle =  0.0', '%5.2f' % (retTargetQs[1]))
+            print('linear = -0.2; angle =  1.0', '%5.2f' % (retTargetQs[2]))
+            print('linear =  0.0; angle = -1.0', '%5.2f' % (retTargetQs[3]))
+            print('linear =  0.0; angle =  0.0', '%5.2f' % (retTargetQs[4]))
+            print('linear =  0.0; angle =  1.0', '%5.2f' % (retTargetQs[5]))
+            print('linear =  0.2; angle = -1.0', '%5.2f' % (retTargetQs[6]))
+            print('linear =  0.2; angle =  0.0', '%5.2f' % (retTargetQs[7]))
+            print('linear =  0.2; angle =  1.0', '%5.2f' % (retTargetQs[8]))
             action        = np.argmax(retTargetQs)  # 最大の報酬を返す行動を選択する
         else:
             action = int(np.random.rand()*9)        # ランダムに行動する
