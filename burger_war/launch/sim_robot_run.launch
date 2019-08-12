@@ -4,7 +4,11 @@
 <!-- blue side robot -->
   <group ns="blue_bot">
       <!-- enemy bot run -->
-      <node pkg="burger_war" type="enemy.py" name="enemyRun" output="screen"/>
+      <!-- <node pkg="burger_war" type="enemy.py" name="enemyRun" output="screen"/> -->
+      <!-- Your robot control node run -->
+      <include file="$(find burger_war)/launch/enemy_burger.launch">
+        <arg name="robot_name" value="blue_bot" />
+      </include>
   </group>
 
 <!-- red side robot -->

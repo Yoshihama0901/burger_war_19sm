@@ -17,15 +17,16 @@ from keras.optimizers import Adam
 
 # 次の行動を決める
 def action_select(action):
-    if action == 0 : linear = -0.2; angle = -1.0
-    if action == 1 : linear = -0.2; angle =  0.0
-    if action == 2 : linear = -0.2; angle =  1.0
-    if action == 3 : linear =  0.0; angle = -1.0
-    if action == 4 : linear =  0.0; angle =  0.0
-    if action == 5 : linear =  0.0; angle =  1.0
-    if action == 6 : linear =  0.2; angle = -1.0
-    if action == 7 : linear =  0.2; angle =  0.0
-    if action == 8 : linear =  0.2; angle =  1.0
+    velocity = 0.5
+    if action == 0 : linear = -velocity; angle = -1.0
+    if action == 1 : linear = -velocity; angle =  0.0
+    if action == 2 : linear = -velocity; angle =  1.0
+    if action == 3 : linear =       0.0; angle = -1.0
+    if action == 4 : linear =       0.0; angle =  0.0
+    if action == 5 : linear =       0.0; angle =  1.0
+    if action == 6 : linear =  velocity; angle = -1.0
+    if action == 7 : linear =  velocity; angle =  0.0
+    if action == 8 : linear =  velocity; angle =  1.0
     return linear, angle
 
 # [1]損失関数の定義
@@ -118,7 +119,7 @@ class Actor:
         # 徐々に最適行動のみをとる、ε-greedy法
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
-        epsilon = 0.5
+        epsilon = 0.4
 
         if epsilon <= np.random.uniform(0, 1):
             retTargetQs   = mainQN.model.predict(state)[0]

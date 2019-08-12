@@ -12,7 +12,7 @@ import sys
 
 from std_msgs.msg import String
 from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist, Vector3, Quaternion
+from geometry_msgs.msg import Twist, Vector3, Quaternion, PoseWithCovarianceStamped
 
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
@@ -51,14 +51,17 @@ def get_ang_matrix(my_pos, angle, n=16):
     my_ang  = np.zeros([n, n])
     my_pos_x = np.where(my_pos==1)[0][0]
     my_pos_y = np.where(my_pos==1)[1][0]
-    if   0 <= angle <  45 : my_ang[my_pos_x+1, my_pos_y+1] = 1
-    if  45 <= angle <  90 : my_ang[my_pos_x+0, my_pos_y+1] = 1
-    if  90 <= angle < 135 : my_ang[my_pos_x-1, my_pos_y+1] = 1
-    if 135 <= angle < 180 : my_ang[my_pos_x-1, my_pos_y+0] = 1
-    if 180 <= angle < 225 : my_ang[my_pos_x-1, my_pos_y-1] = 1
-    if 225 <= angle < 270 : my_ang[my_pos_x+0, my_pos_y-1] = 1
-    if 270 <= angle < 315 : my_ang[my_pos_x+1, my_pos_y-1] = 1
-    if 315 <= angle < 360 : my_ang[my_pos_x+1, my_pos_y+0] = 1
+    try:
+        if   0 <= angle <  45 : my_ang[my_pos_x+1, my_pos_y+1] = 1
+        if  45 <= angle <  90 : my_ang[my_pos_x+0, my_pos_y+1] = 1
+        if  90 <= angle < 135 : my_ang[my_pos_x-1, my_pos_y+1] = 1
+        if 135 <= angle < 180 : my_ang[my_pos_x-1, my_pos_y+0] = 1
+        if 180 <= angle < 225 : my_ang[my_pos_x-1, my_pos_y-1] = 1
+        if 225 <= angle < 270 : my_ang[my_pos_x+0, my_pos_y-1] = 1
+        if 270 <= angle < 315 : my_ang[my_pos_x+1, my_pos_y-1] = 1
+        if 315 <= angle < 360 : my_ang[my_pos_x+1, my_pos_y+0] = 1
+    except:
+        my_ang[my_pos_x, my_pos_y] = 1
     return my_ang
 
 
@@ -115,6 +118,12 @@ class RandomBot():
                 if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
             if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
                 for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+
+    # 位置情報の更新(amcl_poseのコールバック関数)
+    def callback_amcl_pose(self, data):
+        pos = data.pose.pose.position
+        ori = data.pose.pose.orientation
+        self.pos[0] = pos.x; self.pos[1] = pos.y; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4] = ori.z; self.pos[5] = ori.w
     
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
@@ -152,7 +161,9 @@ class RandomBot():
         self.timer += 1
         
         # 位置情報
-        rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
+        #rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
+        if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
+        if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
         my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
         en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
@@ -198,7 +209,8 @@ class RandomBot():
         self.state = next_state                                    # 状態更新
         
         # Qネットワークの重みを学習・更新する replay
-        learn = 1         # 学習を行うかのフラグ
+        learn = 1
+        if self.my_color == 'b' : learn = 0
         #batch_size = 32   # Q-networkを更新するバッチの大きさ
         batch_size = 10   # Q-networkを更新するバッチの大きさ
         gamma = 0.99      # 割引係数
@@ -245,25 +257,29 @@ class RandomBot():
             self.vel_pub.publish(twist) # ROSに反映
             
             # 試合終了した場合
-            if abs(self.reward) == 1 or self.timer > 180 * timeScale:
-            #if abs(self.reward) == 1 or self.timer > 10:
-                self.vel_pub.publish(Twist()) # 動きを止める
-                if   self.reward == 0 : print('Draw')
-                elif self.reward == 1 : print('Win!')
-                else                  : print('Lose')
-                with open('result.csv', 'a') as f:
-                    writer = csv.writer(f, lineterminator='\n')
-                    writer.writerow([self.score[0], self.score[1]])
-                self.mainQN.model.save_weights('weight.hdf5')            # モデルの保存
-                self.restart(r)                                          # 試合再開
+            if self.my_color == 'r':
+                if abs(self.reward) == 1 or self.timer > 180 * timeScale:
+                    self.vel_pub.publish(Twist()) # 動きを止める
+                    if   self.reward == 0 : print('Draw')
+                    elif self.reward == 1 : print('Win!')
+                    else                  : print('Lose')
+                    with open('result.csv', 'a') as f:
+                        writer = csv.writer(f, lineterminator='\n')
+                        writer.writerow([self.score[0], self.score[1]])
+                    self.mainQN.model.save_weights('weight.hdf5')            # モデルの保存
+                    self.restart(r)                                          # 試合再開
+            else:
+                if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('weight.hdf5')                # 重みの読み込み
             
             r.sleep()
 
 
 if __name__ == '__main__':
     
+    color = 'r'
+    
     rospy.init_node('IntegAI_run')    # 初期化宣言 : このソフトウェアは"IntegAI_run"という名前
-    bot = RandomBot('Team Integ AI')
+    bot = RandomBot('Team Integ AI', color=color)
     
     bot.strategy()
 
