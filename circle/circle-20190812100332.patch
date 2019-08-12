@@ -1,0 +1,13 @@
+diff --git a/burger_war/launch/your_burger.launch b/burger_war/launch/your_burger.launch
+index ce308f8..914f318 100755
+--- a/burger_war/launch/your_burger.launch
++++ b/burger_war/launch/your_burger.launch
+@@ -8,7 +8,7 @@
+ 
+     <!-- sample program node -->
+ 
+-    <node pkg="burger_war" type="Move.py" name="randomRun" output="screen"/>
++    <node pkg="burger_war" type="op_keyboard.py" name="randomRun" output="screen"/>
+     <node pkg="burger_war" type="imageview.py" name="imageView"  output="screen"/>
+ 
+     <!-- END sample program node -->
