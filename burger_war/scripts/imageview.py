@@ -30,20 +30,20 @@ class ImageWindow:
         mask = np.zeros(hsv_h.shape, dtype=np.uint8)
         mask[((hsv_h < 16) | (hsv_h > 240)) & (hsv_s > 64)] = 255
         red = cv2.bitwise_and(self.img, self.img, mask=mask)
-        canny_th0 = 50
-        canny_th1 = 100
-        canny = cv2.Canny(red, canny_th0, canny_th1)
+        height = self.img.shape[0]
+        canny_param = 100
+        canny = cv2.Canny(red, canny_param/2, canny_param)
         circles = cv2.HoughCircles(canny, cv2.HOUGH_GRADIENT,
-                                   dp=1, minDist=50, param1=canny_th1, param2=30,
-                                   minRadius=5, maxRadius=20)
+                                   dp=1, minDist=height/10, param1=canny_param, param2=8,
+                                   minRadius=height/96, maxRadius=height/12)
         # print(circles)
         hough = self.img.copy()
         if circles is not None:
             for i in circles[0,:]:
                 cv2.circle(hough, (int(i[0]), int(i[1])), int(i[2]), (0, 255, 0), 4)
         if self.preview:
-            cv2.imshow("red", red)
-            cv2.imshow("canny", canny)
+            #cv2.imshow("red", red)
+            #cv2.imshow("canny", canny)
             cv2.imshow(self.w_name, hough)
             cv2.waitKey(1)
 
