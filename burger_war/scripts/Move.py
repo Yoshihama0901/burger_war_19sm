@@ -248,7 +248,7 @@ class RandomBot():
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        self.mainQN.model.load_weights('weight.hdf5')     # 重みの読み込み
+        self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():
@@ -266,10 +266,10 @@ class RandomBot():
                     with open('result.csv', 'a') as f:
                         writer = csv.writer(f, lineterminator='\n')
                         writer.writerow([self.score[0], self.score[1]])
-                    self.mainQN.model.save_weights('weight.hdf5')            # モデルの保存
+                    self.mainQN.model.save_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')            # モデルの保存
                     self.restart(r)                                          # 試合再開
             else:
-                if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('weight.hdf5')                # 重みの読み込み
+                if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
             
             r.sleep()
 
