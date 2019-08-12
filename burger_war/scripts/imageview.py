@@ -6,6 +6,8 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 import numpy as np
+from gazebo_msgs.msg import ModelStates
+import datetime
 
 class ImageWindow:
     def __init__(self, w_name=None, window_size=(640,480)):
@@ -17,7 +19,19 @@ class ImageWindow:
         self.preview = True
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber('/red_bot/image_raw', Image, self.imageCallback, queue_size=10)
+        rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
+        self.enemy_x = -1
+        self.enemy_y = -1
+        self.me_x = -1
+        self.me_y = -1
+        dt = datetime.datetime.now()
+        self.log_fname = "circle-" + dt.strftime("%Y%m%d%H%M%S") + ".log"
 
+    def callback_model_state(self, data):
+        self.enemy_x = data.pose[37].position.x
+        self.enemy_y = data.pose[37].position.y
+        self.me_x = data.pose[36].position.x
+        self.me_y = data.pose[36].position.y
         
     def imageCallback(self, data):
         try:
@@ -36,11 +50,27 @@ class ImageWindow:
         circles = cv2.HoughCircles(canny, cv2.HOUGH_GRADIENT,
                                    dp=1, minDist=height/10, param1=canny_param, param2=8,
                                    minRadius=height/96, maxRadius=height/12)
-        # print(circles)
+        circle_x = -1
+        circle_y = -1
+        circle_r = -1
+        if circles is not None:
+            for i in circles[0,:]:
+                r = int(i[2])
+                if r > circle_r:
+                    circle_x = int(i[0])
+                    circle_y = int(i[1])
+                    circle_r = r
+        with open(self.log_fname, mode='a') as f:
+            f.write('%f,%f,%f,%f,%d,%d,%d\n' % (self.me_x, self.me_y, self.enemy_x, self.enemy_y, circle_x, circle_y, circle_r))
         hough = self.img.copy()
         if circles is not None:
             for i in circles[0,:]:
-                cv2.circle(hough, (int(i[0]), int(i[1])), int(i[2]), (0, 255, 0), 4)
+                color = (255, 255, 0)
+                pen_width = 2
+                if circle_x == int(i[0]) and circle_y == int(i[1]):
+                    color = (0, 255, 0)
+                    pen_width = 4
+                cv2.circle(hough, (int(i[0]), int(i[1])), int(i[2]), color, pen_width)
         if self.preview:
             #cv2.imshow("red", red)
             #cv2.imshow("canny", canny)
