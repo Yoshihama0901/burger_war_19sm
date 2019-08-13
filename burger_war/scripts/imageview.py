@@ -55,10 +55,12 @@ class ImageWindow:
         circle_r = -1
         if circles is not None:
             for i in circles[0,:]:
+                x = int(i[0])
+                y = int(i[1])
                 r = int(i[2])
-                if r > circle_r:
-                    circle_x = int(i[0])
-                    circle_y = int(i[1])
+                if (y < height * 5 / 8) and (r > circle_r):
+                    circle_x = x
+                    circle_y = y
                     circle_r = r
         with open(self.log_fname, mode='a') as f:
             f.write('%f,%f,%f,%f,%d,%d,%d\n' % (self.me_x, self.me_y, self.enemy_x, self.enemy_y, circle_x, circle_y, circle_r))
