@@ -1,0 +1,45 @@
+diff --git a/burger_war/launch/sim_robot_run.launch b/burger_war/launch/sim_robot_run.launch
+index 4a676e8..3164be6 100644
+--- a/burger_war/launch/sim_robot_run.launch
++++ b/burger_war/launch/sim_robot_run.launch
+@@ -4,11 +4,7 @@
+ <!-- blue side robot -->
+   <group ns="blue_bot">
+       <!-- enemy bot run -->
+-      <!-- <node pkg="burger_war" type="enemy.py" name="enemyRun" output="screen"/> -->
+-      <!-- Your robot control node run -->
+-      <include file="$(find burger_war)/launch/enemy_burger.launch">
+-        <arg name="robot_name" value="blue_bot" />
+-      </include>
++      <node pkg="burger_war" type="enemySimple.py" name="enemyRun" output="screen"/>
+   </group>
+ 
+ <!-- red side robot -->
+diff --git a/burger_war/launch/your_burger.launch b/burger_war/launch/your_burger.launch
+index 56b0993..8a223cf 100755
+--- a/burger_war/launch/your_burger.launch
++++ b/burger_war/launch/your_burger.launch
+@@ -10,7 +10,7 @@
+       <arg name="robot_name" value="red_bot" />
+     </include>
+ 
+-    <node pkg="burger_war" type="Move.py" name="randomRun" output="screen"/>
++    <node pkg="burger_war" type="op_keyboard.py" name="randomRun" output="screen"/>
+     <node pkg="burger_war" type="imageview.py" name="imageView"  output="screen"/>
+ 
+     <!-- END sample program node -->
+diff --git a/burger_war/scripts/imageview.py b/burger_war/scripts/imageview.py
+index 3d6e4ab..d260cb6 100755
+--- a/burger_war/scripts/imageview.py
++++ b/burger_war/scripts/imageview.py
+@@ -39,8 +39,8 @@ class ImageWindow:
+         self.my_qy = -1
+         self.my_qz = -1
+         self.my_qw = -1
+-        self.log_fname = None
+-        #self.log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
++        #self.log_fname = None
++        self.log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
+         if self.log_fname is not None:
+             with open(self.log_fname, mode='a') as f:
+                 f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
