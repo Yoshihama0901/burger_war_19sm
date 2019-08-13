@@ -46,18 +46,18 @@ class ImageWindow:
                 f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
 
     def callback_model_state(self, data):
-        self.enemy_x = data.pose[37].position.x
-        self.enemy_y = data.pose[37].position.y
-        self.enemy_qx = data.pose[37].orientation.x
-        self.enemy_qy = data.pose[37].orientation.y
-        self.enemy_qz = data.pose[37].orientation.z
-        self.enemy_qw = data.pose[37].orientation.w
-        self.my_x = data.pose[36].position.x
-        self.my_y = data.pose[36].position.y
-        self.my_qx = data.pose[36].orientation.x
-        self.my_qy = data.pose[36].orientation.y
-        self.my_qz = data.pose[36].orientation.z
-        self.my_qw = data.pose[36].orientation.w
+        self.enemy_x = data.pose[36].position.x
+        self.enemy_y = data.pose[36].position.y
+        self.enemy_qx = data.pose[36].orientation.x
+        self.enemy_qy = data.pose[36].orientation.y
+        self.enemy_qz = data.pose[36].orientation.z
+        self.enemy_qw = data.pose[36].orientation.w
+        self.my_x = data.pose[37].position.x
+        self.my_y = data.pose[37].position.y
+        self.my_qx = data.pose[37].orientation.x
+        self.my_qy = data.pose[37].orientation.y
+        self.my_qz = data.pose[37].orientation.z
+        self.my_qw = data.pose[37].orientation.w
         
     def imageCallback(self, data):
         try:
