@@ -8,6 +8,13 @@ from sensor_msgs.msg import Image
 import numpy as np
 from gazebo_msgs.msg import ModelStates
 import datetime
+import tf.transformations
+from geometry_msgs.msg import Vector3, Quaternion
+
+# クォータニオンからオイラー角への変換
+def quaternion_to_euler(quaternion):
+    e = tf.transformations.euler_from_quaternion((quaternion.x, quaternion.y, quaternion.z, quaternion.w))
+    return Vector3(x=e[0]*180/np.pi, y=e[1]*180/np.pi, z=e[2]*180/np.pi)
 
 class ImageWindow:
     def __init__(self, w_name=None, window_size=(640,480)):
@@ -22,16 +29,35 @@ class ImageWindow:
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         self.enemy_x = -1
         self.enemy_y = -1
-        self.me_x = -1
-        self.me_y = -1
-        dt = datetime.datetime.now()
-        self.log_fname = "circle-" + dt.strftime("%Y%m%d%H%M%S") + ".log"
+        self.enemy_qx = -1
+        self.enemy_qy = -1
+        self.enemy_qz = -1
+        self.enemy_qw = -1
+        self.my_x = -1
+        self.my_y = -1
+        self.my_qx = -1
+        self.my_qy = -1
+        self.my_qz = -1
+        self.my_qw = -1
+        self.log_fname = None
+        #self.log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
+        if self.log_fname is not None:
+            with open(self.log_fname, mode='a') as f:
+                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
 
     def callback_model_state(self, data):
         self.enemy_x = data.pose[37].position.x
         self.enemy_y = data.pose[37].position.y
-        self.me_x = data.pose[36].position.x
-        self.me_y = data.pose[36].position.y
+        self.enemy_qx = data.pose[37].orientation.x
+        self.enemy_qy = data.pose[37].orientation.y
+        self.enemy_qz = data.pose[37].orientation.z
+        self.enemy_qw = data.pose[37].orientation.w
+        self.my_x = data.pose[36].position.x
+        self.my_y = data.pose[36].position.y
+        self.my_qx = data.pose[36].orientation.x
+        self.my_qy = data.pose[36].orientation.y
+        self.my_qz = data.pose[36].orientation.z
+        self.my_qw = data.pose[36].orientation.w
         
     def imageCallback(self, data):
         try:
@@ -62,8 +88,16 @@ class ImageWindow:
                     circle_x = x
                     circle_y = y
                     circle_r = r
-        with open(self.log_fname, mode='a') as f:
-            f.write('%f,%f,%f,%f,%d,%d,%d\n' % (self.me_x, self.me_y, self.enemy_x, self.enemy_y, circle_x, circle_y, circle_r))
+        if self.log_fname is not None:
+            with open(self.log_fname, mode='a') as f:
+                my_angle = quaternion_to_euler(Quaternion(self.my_qx, self.my_qy, self.my_qz, self.my_qw))
+                enemy_angle = quaternion_to_euler(Quaternion(self.enemy_qx, self.enemy_qy, self.enemy_qz, self.enemy_qw))
+                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d\n'
+                        % (self.my_x, self.my_y, self.my_qx, self.my_qy, self.my_qz, self.my_qw,
+                           my_angle.x, my_angle.y, my_angle.z,
+                           self.enemy_x, self.enemy_y, self.enemy_qx, self.enemy_qy, self.enemy_qz, self.enemy_qw,
+                           enemy_angle.x, enemy_angle.y, enemy_angle.z,
+                           circle_x, circle_y, circle_r))
         hough = self.img.copy()
         if circles is not None:
             for i in circles[0,:]:
