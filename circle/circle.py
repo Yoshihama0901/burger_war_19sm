@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import numpy as np
 import pandas as pd
 
 df = pd.read_csv(sys.argv[1])
@@ -8,7 +9,8 @@ df = df[['my_x', 'my_y', 'my_qx', 'my_qy', 'my_qz', 'my_qw', 'my_ax', 'my_ay', '
 df = df[(df['circle_x'] >= 0) & (df['circle_y'] < 300)]
 df['dx'] = df['enemy_x'] - df['my_x']
 df['dy'] = df['enemy_y'] - df['my_y']
-df['daz'] = df['enemy_az'] - df['my_az']
-df.loc[(df['daz'] <= -180), 'daz'] = df['daz'] + 360
-df.loc[(df['daz'] >   180), 'daz'] = df['daz'] - 360
+df['u'] = np.cos(np.deg2rad(90 - df['my_az'])) * df['dx'] - np.sin(np.deg2rad(90 - df['my_az'])) * df['dy']
+df['v'] = np.sin(np.deg2rad(90 - df['my_az'])) * df['dx'] + np.cos(np.deg2rad(90 - df['my_az'])) * df['dy']
+df = df.drop(['dx', 'dy'], axis=1)
+df['theta'] = np.rad2deg(np.arctan2(df['v'], df['u']) - np.pi / 2)
 df.to_csv(sys.stdout, float_format='%.6f')
