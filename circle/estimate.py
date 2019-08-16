@@ -5,14 +5,14 @@ import pandas as pd
 
 df = pd.read_csv(sys.argv[1])
 
-df['est_enemy_u'] = 0.0015265 * df['circle_x'] \
-                    - 0.4779004613771278
+df['est_enemy_theta'] = -0.08390354 * df['circle_x'] \
+                    + 26.03749234111076
 df['est_enemy_v'] = 4.58779425e-09 * np.power(df['circle_y'], 4) \
                     - 1.14983273e-06 * np.power(df['circle_y'], 3) \
                     + 1.21335973e-04 * np.power(df['circle_y'], 2) \
                     - 7.94065667e-04 * df['circle_y'] \
                     + 0.5704722921109504
-df['est_enemy_theta'] = np.rad2deg(np.arctan2(df['est_enemy_v'], df['est_enemy_u']) - np.pi/2)
+df['est_enemy_u'] = df['est_enemy_v'] * np.tan(np.deg2rad(df['est_enemy_theta']))
 df['est_dx'] = np.cos(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
                + np.sin(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_v']
 df['est_dy'] = - np.sin(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
