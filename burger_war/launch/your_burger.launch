@@ -11,7 +11,6 @@
     </include>
 
     <node pkg="burger_war" type="Move.py" name="randomRun" output="screen"/>
-    <node pkg="burger_war" type="imageview.py" name="imageView"  output="screen"/>
 
     <!-- END sample program node -->
 
