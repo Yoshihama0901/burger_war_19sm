@@ -108,7 +108,20 @@ class RandomBot():
         self.pos      = np.zeros(12)                                    # 位置情報(以下詳細)
          #  0:自分位置_x,  1:自分位置_y,  2:自分角度_x,  3:自分角度_y,  4:自分角度_z,  5:自分角度_w
          #  6:相手位置_x,  7:相手位置_y,  8:相手角度_x,  9:相手角度_y, 10:相手角度_z, 11:相手角度_w
-        self.iw = ImageWindow(w_name="imageview")
+        self.w_name = "imageview"
+        # cv2.namedWindow(self.w_name, cv2.WINDOW_NORMAL)
+        # cv2.moveWindow(self.w_name, 100, 100)
+        self.image_pub = rospy.Publisher('/red_bot/image_raw', Image, queue_size=10)
+        self.img = None
+        self.preview = True
+        self.bridge = CvBridge()
+        self.image_sub = rospy.Subscriber('/red_bot/image_raw', Image, self.imageCallback, queue_size=10)
+        self.debug_log_fname = None
+        #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
+        if self.debug_log_fname is not None:
+            rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
+            with open(self.debug_log_fname, mode='a') as f:
+                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -166,7 +179,6 @@ class RandomBot():
         self.timer += 1
         
         # 位置情報
-        #rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
         if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
@@ -277,49 +289,6 @@ class RandomBot():
                 if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
             
             r.sleep()
-
-class ImageWindow:
-    def __init__(self, w_name=None, window_size=(640,480)):
-        self.w_name = w_name
-        # cv2.namedWindow(self.w_name, cv2.WINDOW_NORMAL)
-        # cv2.moveWindow(self.w_name, 100, 100)
-        self.image_pub = rospy.Publisher('/red_bot/image_raw', Image, queue_size=10)
-        self.img = None
-        self.preview = True
-        self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber('/red_bot/image_raw', Image, self.imageCallback, queue_size=10)
-        rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
-        self.enemy_x = -1
-        self.enemy_y = -1
-        self.enemy_qx = -1
-        self.enemy_qy = -1
-        self.enemy_qz = -1
-        self.enemy_qw = -1
-        self.my_x = -1
-        self.my_y = -1
-        self.my_qx = -1
-        self.my_qy = -1
-        self.my_qz = -1
-        self.my_qw = -1
-        self.log_fname = None
-        #self.log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
-        if self.log_fname is not None:
-            with open(self.log_fname, mode='a') as f:
-                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
-
-    def callback_model_state(self, data):
-        self.enemy_x = data.pose[36].position.x
-        self.enemy_y = data.pose[36].position.y
-        self.enemy_qx = data.pose[36].orientation.x
-        self.enemy_qy = data.pose[36].orientation.y
-        self.enemy_qz = data.pose[36].orientation.z
-        self.enemy_qw = data.pose[36].orientation.w
-        self.my_x = data.pose[37].position.x
-        self.my_y = data.pose[37].position.y
-        self.my_qx = data.pose[37].orientation.x
-        self.my_qy = data.pose[37].orientation.y
-        self.my_qz = data.pose[37].orientation.z
-        self.my_qw = data.pose[37].orientation.w
         
     def imageCallback(self, data):
         try:
@@ -350,14 +319,26 @@ class ImageWindow:
                     circle_x = x
                     circle_y = y
                     circle_r = r
-        if self.log_fname is not None:
-            with open(self.log_fname, mode='a') as f:
-                my_angle = quaternion_to_euler(Quaternion(self.my_qx, self.my_qy, self.my_qz, self.my_qw))
-                enemy_angle = quaternion_to_euler(Quaternion(self.enemy_qx, self.enemy_qy, self.enemy_qz, self.enemy_qw))
+        if self.debug_log_fname is not None:
+            with open(self.debug_log_fname, mode='a') as f:
+                enemy_x = self.pos[6]
+                enemy_y = self.pos[7]
+                enemy_qx = self.pos[8]
+                enemy_qy = self.pos[9]
+                enemy_qz = self.pos[10]
+                enemy_qw = self.pos[11]
+                my_x = self.pos[0]
+                my_y = self.pos[1]
+                my_qx = self.pos[2]
+                my_qy = self.pos[3]
+                my_qz = self.pos[4]
+                my_qw = self.pos[5]
+                my_angle = quaternion_to_euler(Quaternion(my_qx, my_qy, my_qz, my_qw))
+                enemy_angle = quaternion_to_euler(Quaternion(enemy_qx, enemy_qy, enemy_qz, enemy_qw))
                 f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d\n'
-                        % (self.my_x, self.my_y, self.my_qx, self.my_qy, self.my_qz, self.my_qw,
+                        % (my_x, my_y, my_qx, my_qy, my_qz, my_qw,
                            my_angle.x, my_angle.y, my_angle.z,
-                           self.enemy_x, self.enemy_y, self.enemy_qx, self.enemy_qy, self.enemy_qz, self.enemy_qw,
+                           enemy_x, enemy_y, enemy_qx, enemy_qy, enemy_qz, enemy_qw,
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
                            circle_x, circle_y, circle_r))
         hough = self.img.copy()
