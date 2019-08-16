@@ -108,14 +108,15 @@ class RandomBot():
         self.pos      = np.zeros(12)                                    # 位置情報(以下詳細)
          #  0:自分位置_x,  1:自分位置_y,  2:自分角度_x,  3:自分角度_y,  4:自分角度_z,  5:自分角度_w
          #  6:相手位置_x,  7:相手位置_y,  8:相手角度_x,  9:相手角度_y, 10:相手角度_z, 11:相手角度_w
-        self.w_name = "imageview"
+        self.w_name = "imageview-" + self.my_color
         # cv2.namedWindow(self.w_name, cv2.WINDOW_NORMAL)
         # cv2.moveWindow(self.w_name, 100, 100)
-        self.image_pub = rospy.Publisher('/red_bot/image_raw', Image, queue_size=10)
+        camera_resource_name = '/red_bot/image_raw' if self.my_color == 'r' else '/blue_bot/image_raw'
+        self.image_pub = rospy.Publisher(camera_resource_name, Image, queue_size=10)
         self.img = None
         self.preview = True
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber('/red_bot/image_raw', Image, self.imageCallback, queue_size=10)
+        self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
         if self.debug_log_fname is not None:
