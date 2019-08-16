@@ -122,7 +122,7 @@ class RandomBot():
         if self.debug_log_fname is not None:
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
             with open(self.debug_log_fname, mode='a') as f:
-                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r\n')
+                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta\n')
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -311,6 +311,18 @@ class RandomBot():
         circle_x = -1
         circle_y = -1
         circle_r = -1
+        est_enemy_x = None
+        est_enemy_y = None
+        est_enemy_u = None
+        est_enemy_v = None
+        est_enemy_theta = None
+        my_x = self.pos[0]
+        my_y = self.pos[1]
+        my_qx = self.pos[2]
+        my_qy = self.pos[3]
+        my_qz = self.pos[4]
+        my_qw = self.pos[5]
+        my_angle = quaternion_to_euler(Quaternion(my_qx, my_qy, my_qz, my_qw))
         if circles is not None:
             for i in circles[0,:]:
                 x = int(i[0])
@@ -320,28 +332,41 @@ class RandomBot():
                     circle_x = x
                     circle_y = y
                     circle_r = r
-        if self.debug_log_fname is not None:
+            est_enemy_theta = -0.08390354 * circle_x \
+                              + 26.03749234111076
+            est_enemy_v = 4.58779425e-09 * np.power(circle_y, 4) \
+                          - 1.14983273e-06 * np.power(circle_y, 3) \
+                          + 1.21335973e-04 * np.power(circle_y, 2) \
+                          - 7.94065667e-04 * circle_y \
+                          + 0.5704722921109504
+            est_enemy_u = est_enemy_v * np.tan(np.deg2rad(est_enemy_theta))
+            est_dx = np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
+                     + np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
+            est_dy = - np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
+                     + np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
+            est_enemy_x = my_x + est_dx
+            est_enemy_y = my_y + est_dy
+        if self.debug_log_fname is None:
+            if (est_enemy_x is not None) and (est_enemy_y is not None):
+                self.pos[6] = est_enemy_x
+                self.pos[7] = est_enemy_y
+        else:
             with open(self.debug_log_fname, mode='a') as f:
+                # pos[6] ... pos[11] are filled in callback_model_state
                 enemy_x = self.pos[6]
                 enemy_y = self.pos[7]
                 enemy_qx = self.pos[8]
                 enemy_qy = self.pos[9]
                 enemy_qz = self.pos[10]
                 enemy_qw = self.pos[11]
-                my_x = self.pos[0]
-                my_y = self.pos[1]
-                my_qx = self.pos[2]
-                my_qy = self.pos[3]
-                my_qz = self.pos[4]
-                my_qw = self.pos[5]
-                my_angle = quaternion_to_euler(Quaternion(my_qx, my_qy, my_qz, my_qw))
                 enemy_angle = quaternion_to_euler(Quaternion(enemy_qx, enemy_qy, enemy_qz, enemy_qw))
-                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d\n'
+                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f\n'
                         % (my_x, my_y, my_qx, my_qy, my_qz, my_qw,
                            my_angle.x, my_angle.y, my_angle.z,
                            enemy_x, enemy_y, enemy_qx, enemy_qy, enemy_qz, enemy_qw,
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
-                           circle_x, circle_y, circle_r))
+                           circle_x, circle_y, circle_r,
+                           est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta))
         hough = self.img.copy()
         if circles is not None:
             for i in circles[0,:]:
