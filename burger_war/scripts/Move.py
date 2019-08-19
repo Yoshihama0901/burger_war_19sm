@@ -333,8 +333,9 @@ class RandomBot():
                     circle_y = y
                     circle_r = r
             if circle_r > 0:
-                est_enemy_theta = -0.08390354 * circle_x \
-                                  + 26.03749234111076
+                est_enemy_sin_theta = -0.00143584 * circle_x \
+                                      + 0.4458366274811388
+                est_enemy_theta = np.rad2deg(np.arcsin(est_enemy_sin_theta))
                 est_enemy_v = 4.58779425e-09 * np.power(circle_y, 4) \
                               - 1.14983273e-06 * np.power(circle_y, 3) \
                               + 1.21335973e-04 * np.power(circle_y, 2) \
