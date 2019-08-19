@@ -42,7 +42,10 @@ def get_pos_matrix(x, y, n=16):
     rot     = get_rotation_matrix(45 * np.pi / 180) # 45度回転行列の定義
     rotated = ( np.dot(rot, pos) / 3.4 ) + 0.5      # 45度回転して最大幅1.7で正規化(0-1)
     pos_np  = np.zeros([n, n])
-    pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
+    try:
+        pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
+    except:
+        pos_np[int(n/2)][int(n/2)]                   = 1
     return pos_np
 
 
@@ -228,8 +231,9 @@ class RandomBot():
         self.state = next_state                                    # 状態更新
         
         # Qネットワークの重みを学習・更新する replay
-        learn = 1
-        if self.my_color == 'b' : learn = 0
+        if self.training == True : learn = 1
+        else                     : learn = 0
+        if self.my_color == 'b'  : learn = 0
         #batch_size = 32   # Q-networkを更新するバッチの大きさ
         batch_size = 10   # Q-networkを更新するバッチの大きさ
         gamma = 0.99      # 割引係数
