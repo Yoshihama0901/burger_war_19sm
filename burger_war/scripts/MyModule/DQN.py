@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-# _/  ‹­‰»ŠwKDQN (Deep Q Network)
+# _/  å¼·åŒ–å­¦ç¿’DQN (Deep Q Network)
 # _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
 import numpy as np
@@ -15,7 +15,7 @@ from keras.models import Sequential
 from keras.layers import *
 from keras.optimizers import Adam
 
-# Ÿ‚Ìs“®‚ğŒˆ‚ß‚é
+# æ¬¡ã®è¡Œå‹•ã‚’æ±ºã‚ã‚‹
 def action_select(action):
     velocity = 0.5
     if action == 0 : linear = -velocity; angle = -1.0
@@ -29,8 +29,8 @@ def action_select(action):
     if action == 8 : linear =  velocity; angle =  1.0
     return linear, angle
 
-# [1]‘¹¸ŠÖ”‚Ì’è‹`
-# ‘¹¸ŠÖ”‚ÉhuberŠÖ”‚ğg—p‚µ‚Ü‚· Qlhttps://github.com/jaara/AI-blog/blob/master/CartPole-DQN.py
+# [1]æå¤±é–¢æ•°ã®å®šç¾©
+# æå¤±é–¢æ•°ã«huberé–¢æ•°ã‚’ä½¿ç”¨ã—ã¾ã™ å‚è€ƒhttps://github.com/jaara/AI-blog/blob/master/CartPole-DQN.py
 def huberloss(y_true, y_pred):
     err = y_true - y_pred
     cond = K.abs(err) < 1.0
@@ -47,7 +47,7 @@ def cba(inputs, filters, kernel_size, strides):
     return x
 
 
-# [2]QŠÖ”‚ğƒfƒB[ƒvƒ‰[ƒjƒ“ƒO‚Ìƒlƒbƒgƒ[ƒN‚ğƒNƒ‰ƒX‚Æ‚µ‚Ä’è‹`
+# [2]Qé–¢æ•°ã‚’ãƒ‡ã‚£ãƒ¼ãƒ—ãƒ©ãƒ¼ãƒ‹ãƒ³ã‚°ã®ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã‚’ã‚¯ãƒ©ã‚¹ã¨ã—ã¦å®šç¾©
 class QNetwork:
     def __init__(self, learning_rate=0.01, action_size=9):
         self.action_size = action_size
@@ -61,11 +61,11 @@ class QNetwork:
         
         self.model = Model(inputs=inputs, outputs=output)
         
-        self.optimizer = Adam(lr=learning_rate)  # Œë·‚ğŒ¸‚ç‚·ŠwK•û–@‚ÍAdam
+        self.optimizer = Adam(lr=learning_rate)  # èª¤å·®ã‚’æ¸›ã‚‰ã™å­¦ç¿’æ–¹æ³•ã¯Adam
         self.model.compile(loss=huberloss, optimizer=self.optimizer)
         self.model.summary()
 
-    # d‚İ‚ÌŠwK
+    # é‡ã¿ã®å­¦ç¿’
     def replay(self, memory, batch_size, gamma, targetQN):
         inputs  = np.zeros((batch_size, 16, 16, 9))
         targets = np.zeros((batch_size, self.action_size))
@@ -76,21 +76,21 @@ class QNetwork:
             inputs[i:i + 1] = state_b
             target = reward_b
 
-            #if not (next_state_b == np.zeros(state_b.shape)).all(axis=1): # ó‘Ô‚ª‘S•”ƒ[ƒ‚¶‚á‚È‚¢ê‡
+            #if not (next_state_b == np.zeros(state_b.shape)).all(axis=1): # çŠ¶æ…‹ãŒå…¨éƒ¨ã‚¼ãƒ­ã˜ã‚ƒãªã„å ´åˆ
             if 1:
-                # ‰¿’lŒvZiDDQN‚É‚à‘Î‰‚Å‚«‚é‚æ‚¤‚ÉAs“®Œˆ’è‚ÌQƒlƒbƒgƒ[ƒN‚Æ‰¿’lŠÏ”‚ÌQƒlƒbƒgƒ[ƒN‚Í•ª—£j
+                # ä¾¡å€¤è¨ˆç®—ï¼ˆDDQNã«ã‚‚å¯¾å¿œã§ãã‚‹ã‚ˆã†ã«ã€è¡Œå‹•æ±ºå®šã®Qãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã¨ä¾¡å€¤è¦³æ•°ã®Qãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã¯åˆ†é›¢ï¼‰
                 retmainQs = self.model.predict(next_state_b)[0]
-                next_action = np.argmax(retmainQs)      # Å‘å‚Ì•ñV‚ğ•Ô‚·s“®‚ğ‘I‘ğ‚·‚é
+                next_action = np.argmax(retmainQs)      # æœ€å¤§ã®å ±é…¬ã‚’è¿”ã™è¡Œå‹•ã‚’é¸æŠã™ã‚‹
                 target = reward_b + gamma * targetQN.model.predict(next_state_b)[0][next_action]
 
-            targets[i] = self.model.predict(state_b)    # Qƒlƒbƒgƒ[ƒN‚Ìo—Í
-            targets[i][action_b] = target               # ‹³tM†
+            targets[i] = self.model.predict(state_b)    # Qãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã®å‡ºåŠ›
+            targets[i][action_b] = target               # æ•™å¸«ä¿¡å·
 
-        # shiglay‚³‚ñ‚æ‚èƒAƒhƒoƒCƒX‚¢‚½‚¾‚«Afor•¶‚ÌŠO‚ÖC³‚µ‚Ü‚µ‚½
-        self.model.fit(inputs, targets, epochs=1, verbose=0)  # ‰‰ñ‚ÍŠÔ‚ª‚©‚©‚é epochs‚ÍŒP—ûƒf[ƒ^‚Ì”½•œ‰ñ”Averbose=0‚Í•\¦‚È‚µ‚Ìİ’è
+        # shiglayã•ã‚“ã‚ˆã‚Šã‚¢ãƒ‰ãƒã‚¤ã‚¹ã„ãŸã ãã€foræ–‡ã®å¤–ã¸ä¿®æ­£ã—ã¾ã—ãŸ
+        self.model.fit(inputs, targets, epochs=1, verbose=0)  # åˆå›ã¯æ™‚é–“ãŒã‹ã‹ã‚‹ epochsã¯è¨“ç·´ãƒ‡ãƒ¼ã‚¿ã®åå¾©å›æ•°ã€verbose=0ã¯è¡¨ç¤ºãªã—ã®è¨­å®š
 
 
-# [3]Experience Replay‚ÆFixed Target Q-Network‚ğÀŒ»‚·‚éƒƒ‚ƒŠƒNƒ‰ƒX
+# [3]Experience Replayã¨Fixed Target Q-Networkã‚’å®Ÿç¾ã™ã‚‹ãƒ¡ãƒ¢ãƒªã‚¯ãƒ©ã‚¹
 class Memory:
     def __init__(self, max_size=1000):
         self.max_size = max_size
@@ -111,12 +111,12 @@ class Memory:
         return len(self.buffer)
 
 
-# [4]ƒJ[ƒg‚Ìó‘Ô‚É‰‚¶‚ÄAs“®‚ğŒˆ’è‚·‚éƒNƒ‰ƒX
-# ƒAƒhƒoƒCƒX‚¢‚½‚¾‚«Aˆø”‚ÉtargetQN‚ğg—p‚µ‚Ä‚¢‚½‚Ì‚ğmainQN‚ÉC³‚µ‚Ü‚µ‚½
+# [4]ã‚«ãƒ¼ãƒˆã®çŠ¶æ…‹ã«å¿œã˜ã¦ã€è¡Œå‹•ã‚’æ±ºå®šã™ã‚‹ã‚¯ãƒ©ã‚¹
+# ã‚¢ãƒ‰ãƒã‚¤ã‚¹ã„ãŸã ãã€å¼•æ•°ã«targetQNã‚’ä½¿ç”¨ã—ã¦ã„ãŸã®ã‚’mainQNã«ä¿®æ­£ã—ã¾ã—ãŸ
 class Actor:
 
-    def get_action(self, state, episode, mainQN):   # [C]‚”{‚P‚Å‚Ìs“®‚ğ•Ô‚·
-        # ™X‚ÉÅ“Ks“®‚Ì‚İ‚ğ‚Æ‚éAƒÃ-greedy–@
+    def get_action(self, state, episode, mainQN):   # [C]ï½”ï¼‹ï¼‘ã§ã®è¡Œå‹•ã‚’è¿”ã™
+        # å¾ã€…ã«æœ€é©è¡Œå‹•ã®ã¿ã‚’ã¨ã‚‹ã€Îµ-greedyæ³•
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
         epsilon = 0.4
@@ -133,9 +133,9 @@ class Actor:
             print('linear =  0.2; angle = -1.0', '%5.2f' % (retTargetQs[6]))
             print('linear =  0.2; angle =  0.0', '%5.2f' % (retTargetQs[7]))
             print('linear =  0.2; angle =  1.0', '%5.2f' % (retTargetQs[8]))
-            action        = np.argmax(retTargetQs)  # Å‘å‚Ì•ñV‚ğ•Ô‚·s“®‚ğ‘I‘ğ‚·‚é
+            action        = np.argmax(retTargetQs)  # æœ€å¤§ã®å ±é…¬ã‚’è¿”ã™è¡Œå‹•ã‚’é¸æŠã™ã‚‹
         else:
-            action = int(np.random.rand()*9)        # ƒ‰ƒ“ƒ_ƒ€‚És“®‚·‚é
+            action = int(np.random.rand()*9)        # ãƒ©ãƒ³ãƒ€ãƒ ã«è¡Œå‹•ã™ã‚‹
         linear, angle = action_select(action)
 
         return action, linear, angle
