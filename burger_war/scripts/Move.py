@@ -372,16 +372,16 @@ class RandomBot():
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
                            circle_x, circle_y, circle_r,
                            est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta))
-        hough = self.img.copy()
-        if circles is not None:
-            for i in circles[0,:]:
-                color = (255, 255, 0)
-                pen_width = 2
-                if circle_x == int(i[0]) and circle_y == int(i[1]):
-                    color = (0, 255, 0)
-                    pen_width = 4
-                cv2.circle(hough, (int(i[0]), int(i[1])), int(i[2]), color, pen_width)
         if self.preview:
+            hough = self.img.copy()
+            if circles is not None:
+                for i in circles[0,:]:
+                    color = (255, 255, 0)
+                    pen_width = 2
+                    if circle_x == int(i[0]) and circle_y == int(i[1]):
+                        color = (0, 255, 0)
+                        pen_width = 4
+                        cv2.circle(hough, (int(i[0]), int(i[1])), int(i[2]), color, pen_width)
             #cv2.imshow("red", red)
             #cv2.imshow("canny", canny)
             cv2.imshow(self.w_name, hough)
