@@ -349,9 +349,10 @@ class RandomBot():
                 est_enemy_x = my_x + est_dx
                 est_enemy_y = my_y + est_dy
         if self.debug_log_fname is None:
-            if (est_enemy_x is not None) and (est_enemy_y is not None):
-                self.pos[6] = est_enemy_x
-                self.pos[7] = est_enemy_y
+            pass # tentative
+            # if (est_enemy_x is not None) and (est_enemy_y is not None):
+            #     self.pos[6] = est_enemy_x
+            #     self.pos[7] = est_enemy_y
         else:
             with open(self.debug_log_fname, mode='a') as f:
                 # pos[6] ... pos[11] are filled in callback_model_state
