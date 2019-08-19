@@ -119,6 +119,7 @@ class RandomBot():
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
+        self.training = False
         if self.debug_log_fname is not None:
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
             with open(self.debug_log_fname, mode='a') as f:
@@ -274,20 +275,21 @@ class RandomBot():
             twist = self.calcTwist()    # 移動距離と角度を計算
             self.vel_pub.publish(twist) # ROSに反映
             
-            # 試合終了した場合
-            if self.my_color == 'r':
-                if abs(self.reward) == 1 or self.timer > 180 * timeScale:
-                    self.vel_pub.publish(Twist()) # 動きを止める
-                    if   self.reward == 0 : print('Draw')
-                    elif self.reward == 1 : print('Win!')
-                    else                  : print('Lose')
-                    with open('result.csv', 'a') as f:
-                        writer = csv.writer(f, lineterminator='\n')
-                        writer.writerow([self.score[0], self.score[1]])
-                    self.mainQN.model.save_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')            # モデルの保存
-                    self.restart(r)                                          # 試合再開
-            else:
-                if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
+            if self.training == True:
+                # 試合終了した場合
+                if self.my_color == 'r':
+                    if abs(self.reward) == 1 or self.timer > 180 * timeScale:
+                        self.vel_pub.publish(Twist()) # 動きを止める
+                        if   self.reward == 0 : print('Draw')
+                        elif self.reward == 1 : print('Win!')
+                        else                  : print('Lose')
+                        with open('result.csv', 'a') as f:
+                            writer = csv.writer(f, lineterminator='\n')
+                            writer.writerow([self.score[0], self.score[1]])
+                        self.mainQN.model.save_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')            # モデルの保存
+                        self.restart(r)                                          # 試合再開
+                else:
+                    if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
             
             r.sleep()
         
