@@ -51,6 +51,7 @@ def cba(inputs, filters, kernel_size, strides):
 class QNetwork:
     def __init__(self, learning_rate=0.01, action_size=9):
         self.action_size = action_size
+        self.debug_log = False
         
         inputs = Input(shape=(16, 16, 9))
         x      = cba(inputs, filters= 64, kernel_size=3, strides=1)
@@ -63,7 +64,8 @@ class QNetwork:
         
         self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
         self.model.compile(loss=huberloss, optimizer=self.optimizer)
-        self.model.summary()
+        if self.debug_log == True:
+            self.model.summary()
 
     # 重みの学習
     def replay(self, memory, batch_size, gamma, targetQN):
@@ -114,6 +116,8 @@ class Memory:
 # [4]カートの状態に応じて、行動を決定するクラス
 # アドバイスいただき、引数にtargetQNを使用していたのをmainQNに修正しました
 class Actor:
+    def __init__(self):
+        self.debug_log = False
 
     def get_action(self, state, episode, mainQN):   # [C]ｔ＋１での行動を返す
         # 徐々に最適行動のみをとる、ε-greedy法
@@ -123,16 +127,17 @@ class Actor:
 
         if epsilon <= np.random.uniform(0, 1):
             retTargetQs   = mainQN.model.predict(state)[0]
-            print(episode)
-            print('linear = -0.2; angle = -1.0', '%5.2f' % (retTargetQs[0]))
-            print('linear = -0.2; angle =  0.0', '%5.2f' % (retTargetQs[1]))
-            print('linear = -0.2; angle =  1.0', '%5.2f' % (retTargetQs[2]))
-            print('linear =  0.0; angle = -1.0', '%5.2f' % (retTargetQs[3]))
-            print('linear =  0.0; angle =  0.0', '%5.2f' % (retTargetQs[4]))
-            print('linear =  0.0; angle =  1.0', '%5.2f' % (retTargetQs[5]))
-            print('linear =  0.2; angle = -1.0', '%5.2f' % (retTargetQs[6]))
-            print('linear =  0.2; angle =  0.0', '%5.2f' % (retTargetQs[7]))
-            print('linear =  0.2; angle =  1.0', '%5.2f' % (retTargetQs[8]))
+            if self.debug_log == True:
+                print(episode)
+                print('linear = -0.2; angle = -1.0', '%5.2f' % (retTargetQs[0]))
+                print('linear = -0.2; angle =  0.0', '%5.2f' % (retTargetQs[1]))
+                print('linear = -0.2; angle =  1.0', '%5.2f' % (retTargetQs[2]))
+                print('linear =  0.0; angle = -1.0', '%5.2f' % (retTargetQs[3]))
+                print('linear =  0.0; angle =  0.0', '%5.2f' % (retTargetQs[4]))
+                print('linear =  0.0; angle =  1.0', '%5.2f' % (retTargetQs[5]))
+                print('linear =  0.2; angle = -1.0', '%5.2f' % (retTargetQs[6]))
+                print('linear =  0.2; angle =  0.0', '%5.2f' % (retTargetQs[7]))
+                print('linear =  0.2; angle =  1.0', '%5.2f' % (retTargetQs[8]))
             action        = np.argmax(retTargetQs)  # 最大の報酬を返す行動を選択する
         else:
             action = int(np.random.rand()*9)        # ランダムに行動する
