@@ -114,7 +114,7 @@ class RandomBot():
         camera_resource_name = '/red_bot/image_raw' if self.my_color == 'r' else '/blue_bot/image_raw'
         self.image_pub = rospy.Publisher(camera_resource_name, Image, queue_size=10)
         self.img = None
-        self.preview = True
+        self.preview = False
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
