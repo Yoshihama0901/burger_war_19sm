@@ -332,20 +332,21 @@ class RandomBot():
                     circle_x = x
                     circle_y = y
                     circle_r = r
-            est_enemy_theta = -0.08390354 * circle_x \
-                              + 26.03749234111076
-            est_enemy_v = 4.58779425e-09 * np.power(circle_y, 4) \
-                          - 1.14983273e-06 * np.power(circle_y, 3) \
-                          + 1.21335973e-04 * np.power(circle_y, 2) \
-                          - 7.94065667e-04 * circle_y \
-                          + 0.5704722921109504
-            est_enemy_u = est_enemy_v * np.tan(np.deg2rad(est_enemy_theta))
-            est_dx = np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
-                     + np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
-            est_dy = - np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
-                     + np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
-            est_enemy_x = my_x + est_dx
-            est_enemy_y = my_y + est_dy
+            if circle_r > 0:
+                est_enemy_theta = -0.08390354 * circle_x \
+                                  + 26.03749234111076
+                est_enemy_v = 4.58779425e-09 * np.power(circle_y, 4) \
+                              - 1.14983273e-06 * np.power(circle_y, 3) \
+                              + 1.21335973e-04 * np.power(circle_y, 2) \
+                              - 7.94065667e-04 * circle_y \
+                              + 0.5704722921109504
+                est_enemy_u = est_enemy_v * np.tan(np.deg2rad(est_enemy_theta))
+                est_dx = np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
+                         + np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
+                est_dy = - np.sin(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_u \
+                         + np.cos(np.pi / 2 - np.deg2rad(my_angle.z)) * est_enemy_v
+                est_enemy_x = my_x + est_dx
+                est_enemy_y = my_y + est_dy
         if self.debug_log_fname is None:
             if (est_enemy_x is not None) and (est_enemy_y is not None):
                 self.pos[6] = est_enemy_x
