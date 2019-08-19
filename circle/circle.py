@@ -13,4 +13,5 @@ df['u'] = np.cos(np.deg2rad(90 - df['my_az'])) * df['dx'] - np.sin(np.deg2rad(90
 df['v'] = np.sin(np.deg2rad(90 - df['my_az'])) * df['dx'] + np.cos(np.deg2rad(90 - df['my_az'])) * df['dy']
 df = df.drop(['dx', 'dy'], axis=1)
 df['theta'] = np.rad2deg(np.arctan2(df['v'], df['u']) - np.pi / 2)
+df['sin_theta'] = np.sin(np.deg2rad(df['theta']))
 df.to_csv(sys.stdout, float_format='%.6f')
