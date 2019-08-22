@@ -125,8 +125,13 @@ class RandomBot():
         self.debug_log_fname = None
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
         self.training = False
-        if self.debug_log_fname is not None:
+        self.use_amcl_pose = True
+        if self.use_amcl_pose is True:
+            if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
+            if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
+        if (self.use_amcl_pose is False) or (self.debug_log_fname is not None):
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
+        if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
                 f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta\n')
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot
@@ -154,12 +159,13 @@ class RandomBot():
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
         #print('*********', len(data.pose))
-        pos = data.pose[37].position;    self.pos[0] = pos.x; self.pos[1] = pos.y;
-        ori = data.pose[37].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
-        pos = data.pose[36].position;    self.pos[6] = pos.x; self.pos[7] = pos.y;
-        ori = data.pose[36].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
-        if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
-            for i in range(6) : self.pos[i], self.pos[6+i] = self.pos[6+i], self.pos[i]
+        my = 37 if self.my_color == 'r' else 36
+        enemy = 36 if self.my_color == 'r' else 37
+        if self.use_amcl_pose is False:
+            pos = data.pose[my].position;    self.pos[0] = pos.x; self.pos[1] = pos.y;
+            ori = data.pose[my].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
+        pos = data.pose[enemy].position;    self.pos[6] = pos.x; self.pos[7] = pos.y;
+        ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
     def calc_reward(self):
@@ -187,8 +193,6 @@ class RandomBot():
         self.timer += 1
         
         # 位置情報
-        if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
-        if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
         my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
         en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
