@@ -15,6 +15,8 @@ from std_msgs.msg import String
 from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import Twist, Vector3, Quaternion, PoseWithCovarianceStamped
 from sensor_msgs.msg import Image
+import actionlib # RESPECT @seigot
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal # RESPECT @seigot
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -127,6 +129,7 @@ class RandomBot():
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
             with open(self.debug_log_fname, mode='a') as f:
                 f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta\n')
+        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -257,6 +260,36 @@ class RandomBot():
         subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
         r.sleep()
 
+
+    # RESPECT @seigot
+    # do following command first.
+    #   $ roslaunch burger_navigation multi_robot_navigation_run.launch
+    def setGoal(self,x,y,yaw):
+        self.client.wait_for_server()
+        #print('setGoal x=', x, 'y=', y, 'yaw=', yaw)
+
+        goal = MoveBaseGoal()
+        name = 'red_bot' if self.my_color == 'r' else 'blue_bot'
+        goal.target_pose.header.frame_id = name + "/map"
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x = x
+        goal.target_pose.pose.position.y = y
+
+        # Euler to Quartanion
+        q=tf.transformations.quaternion_from_euler(0,0,yaw)
+        goal.target_pose.pose.orientation.x = q[0]
+        goal.target_pose.pose.orientation.y = q[1]
+        goal.target_pose.pose.orientation.z = q[2]
+        goal.target_pose.pose.orientation.w = q[3]
+
+        self.client.send_goal(goal)
+        wait = self.client.wait_for_result()
+        if not wait:
+            rospy.logerr("Action server not available!")
+            rospy.signal_shutdown("Action server not available!")
+            return -1
+
+        return 0
 
     def strategy(self):
         
