@@ -162,9 +162,9 @@ class RandomBot():
         my = 37 if self.my_color == 'r' else 36
         enemy = 36 if self.my_color == 'r' else 37
         if self.use_amcl_pose is False:
-            pos = data.pose[my].position;    self.pos[0] = pos.x; self.pos[1] = pos.y;
+            pos = data.pose[my].position;    self.pos[0] = -pos.y; self.pos[1] = pos.x;
             ori = data.pose[my].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
-        pos = data.pose[enemy].position;    self.pos[6] = pos.x; self.pos[7] = pos.y;
+        pos = data.pose[enemy].position;    self.pos[6] = -pos.y; self.pos[7] = pos.x;
         ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
