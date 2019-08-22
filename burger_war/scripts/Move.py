@@ -40,37 +40,39 @@ def get_rotation_matrix(rad):
 # 現在地を２次元ベクトル(n*n)にして返す
 def get_pos_matrix(x, y, n=16):
     #my_pos  = np.array([self.pos[0], self.pos[1]])  # 現在地点
-    pos     = np.array([x, y])                      # 現在地点
-    rot     = get_rotation_matrix(45 * np.pi / 180) # 45度回転行列の定義
-    rotated = ( np.dot(rot, pos) / 3.4 ) + 0.5      # 45度回転して最大幅1.7で正規化(0-1)
+    pos     = np.array([x, y])                       # 現在地点
+    rot     = get_rotation_matrix(-45 * np.pi / 180) # 45度回転行列の定義
+    rotated = ( np.dot(rot, pos) / 3.4 ) + 0.5       # 45度回転して最大幅1.7で正規化(0-1)
     pos_np  = np.zeros([n, n])
-    try:
-        pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
-    except:
-        pos_np[int(n/2)][int(n/2)]                   = 1
+    try:    pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
+    except: pos_np[int(n/2)][int(n/2)]                   = 1  # はみ出ている場合はエラー処理
     return pos_np
 
 
 # 自分が向いている向きを２次元ベクトル(n*n)にして返す
 def get_ang_matrix(my_pos, angle, n=16):
-    #angle = my_angle.z + 22.5
     while angle > 0 : angle -= 360
     while angle < 0 : angle += 360
-    #print(angle)
     my_ang  = np.zeros([n, n])
-    my_pos_x = np.where(my_pos==1)[0][0]
-    my_pos_y = np.where(my_pos==1)[1][0]
-    try:
-        if   0 <= angle <  45 : my_ang[my_pos_x+1, my_pos_y+1] = 1
-        if  45 <= angle <  90 : my_ang[my_pos_x+0, my_pos_y+1] = 1
-        if  90 <= angle < 135 : my_ang[my_pos_x-1, my_pos_y+1] = 1
-        if 135 <= angle < 180 : my_ang[my_pos_x-1, my_pos_y+0] = 1
-        if 180 <= angle < 225 : my_ang[my_pos_x-1, my_pos_y-1] = 1
-        if 225 <= angle < 270 : my_ang[my_pos_x+0, my_pos_y-1] = 1
-        if 270 <= angle < 315 : my_ang[my_pos_x+1, my_pos_y-1] = 1
-        if 315 <= angle < 360 : my_ang[my_pos_x+1, my_pos_y+0] = 1
-    except:
-        my_ang[my_pos_x, my_pos_y] = 1
+    for i in range(16):
+        for j in range(16):
+            if 360-22.5 < angle or angle <= 22.5 :              #   0°
+                if 10 <= i and 10 <= j      : my_ang[i][j] = 1
+            if  45-22.5 < angle <=  45+22.5 :                   #  45°
+                if 10 <= i and  5 <= j <= 10: my_ang[i][j] = 1
+            if  90-22.5 < angle <=  90+22.5 :                   #  90°
+                if 10 <= i and  5 >= j      : my_ang[i][j] = 1
+            if 135-22.5 < angle <= 135+22.5 :                   # 135°
+                if  5 <= i <=10 and  5 >= j : my_ang[i][j] = 1
+            if 180-22.5 < angle <= 180+22.5 :                   # 180°
+                if  5 >= i and  5 >= j      : my_ang[i][j] = 1
+            if 225-22.5 < angle <= 225+22.5 :                   # 225°
+                if  5 >= i and  5 <= j <= 10: my_ang[i][j] = 1
+            if 270-22.5 < angle <= 270+22.5 :                   # 270°
+                if  5 >= i and  10 <= j     : my_ang[i][j] = 1
+            if 315-22.5 < angle <= 315+22.5 :                   # 315°
+                if  5 <= i <=10 and 10 <= j : my_ang[i][j] = 1
+    #print(my_ang)
     return my_ang
 
 
@@ -78,20 +80,31 @@ def get_ang_matrix(my_pos, angle, n=16):
 def get_sco_matrix(score, point):
     #point = 1
     np_sco = np.zeros([16, 16])
-    if score[8]  == point : np_sco[ 3,  8] = 1   #  8:Tomato_N
-    if score[9]  == point : np_sco[ 4,  7] = 1   #  9:Tomato_S
-    if score[10] == point : np_sco[ 7, 12] = 1   # 10:Omelette_N
-    if score[11] == point : np_sco[ 8, 11] = 1   # 11:Omelette_S
-    if score[12] == point : np_sco[ 7,  4] = 1   # 12:Pudding_N
-    if score[13] == point : np_sco[ 8,  3] = 1   # 13:Pudding_S
-    if score[14] == point : np_sco[11,  8] = 1   # 14:OctopusWiener_N
-    if score[15] == point : np_sco[12,  7] = 1   # 15:OctopusWiener_S
-    if score[16] == point : np_sco[ 7,  8] = 1   # 16:FriedShrimp_N
-    if score[17] == point : np_sco[ 7,  7] = 1   # 17:FriedShrimp_E
-    if score[18] == point : np_sco[ 8,  8] = 1   # 18:FriedShrimp_W
-    if score[19] == point : np_sco[ 8,  7] = 1   # 19:FriedShrimp_S
+    if score[8]  == point : np_sco[12,  8] = 1   #  8:Tomato_N
+    if score[9]  == point : np_sco[11,  7] = 1   #  9:Tomato_S
+    if score[10] == point : np_sco[ 7, 11] = 1   # 10:Omelette_N
+    if score[11] == point : np_sco[ 8, 12] = 1   # 11:Omelette_S
+    if score[12] == point : np_sco[ 8,  4] = 1   # 12:Pudding_N
+    if score[13] == point : np_sco[ 7,  3] = 1   # 13:Pudding_S
+    if score[14] == point : np_sco[ 3,  7] = 1   # 14:OctopusWiener_N
+    if score[15] == point : np_sco[ 4,  8] = 1   # 15:OctopusWiener_S
+    if score[16] == point : np_sco[ 8,  8] = 1   # 16:FriedShrimp_N
+    if score[17] == point : np_sco[ 8,  7] = 1   # 17:FriedShrimp_E
+    if score[18] == point : np_sco[ 7,  8] = 1   # 18:FriedShrimp_W
+    if score[19] == point : np_sco[ 7,  7] = 1   # 19:FriedShrimp_S
     return np_sco
 
+# 自分の側面得点
+def get_side_matrix(side1, side2):
+    np_sco = np.zeros([16, 16])
+    for i in range(16):
+        for j in range(16):
+            if not side1 == 0 :
+                if 7 >= i : np_sco[i][j] = 1
+            if not side2 == 0 :
+                if 8 <= i : np_sco[i][j] = 1
+    print(np_sco)
+    return np_sco
 
 
 class RandomBot():
@@ -192,8 +205,7 @@ class RandomBot():
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
         my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
         en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
-        my_ang = get_ang_matrix(my_pos, my_angle.z + 22.5) # 自分の向き
-        #print(my_pos)
+        my_ang = get_ang_matrix(my_pos, my_angle.z)        # 自分の向き
         
         # 審判情報の更新(点数)
         rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
@@ -204,6 +216,8 @@ class RandomBot():
         enSide1_sco = en_pos if not self.score[3] == 0 else np.zeros([16, 16]) # 相手側面１の点数
         enSide2_sco = en_pos if not self.score[4] == 0 else np.zeros([16, 16]) # 相手側面２の点数
         
+        mySide_sco  = get_side_matrix(self.score[6], self.score[7])
+
         # 状態と報酬の更新( 16 × 16 × 9ch )
         next_state = np.concatenate([np.expand_dims(my_pos,      axis=2),
                                      np.expand_dims(en_pos,      axis=2),
