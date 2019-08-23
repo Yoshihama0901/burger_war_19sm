@@ -140,7 +140,7 @@ class RandomBot():
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
         self.training = True
         self.debug_use_gazebo_my_pos = False
-        self.debug_use_gazebo_enemy_pos = True
+        self.debug_use_gazebo_enemy_pos = False
         if self.debug_use_gazebo_my_pos is False:
             if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
             if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
