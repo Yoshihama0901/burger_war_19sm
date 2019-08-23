@@ -46,8 +46,13 @@ def get_pos_matrix(x, y, n=16):
     rot     = get_rotation_matrix(-45 * np.pi / 180)          # 45度回転行列の定義
     rotated = ( np.dot(rot, pos) / fieldScale ) + 0.5         # 45度回転して最大幅1.5で正規化(0-1)
     pos_np  = np.zeros([n, n])
-    try:    pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
-    except: pos_np[int(n/2)][int(n/2)]                   = 1  # はみ出ている場合はエラー処理
+    i = int(rotated[0]*n)
+    j = int(rotated[1]*n)
+    if i < 0: i = 0
+    if i > 15: i = 15
+    if j < 0: j = 0
+    if j > 15: j = 15
+    pos_np[i][j] = 1
     return pos_np
 
 
