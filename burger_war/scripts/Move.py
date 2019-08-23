@@ -410,10 +410,10 @@ class RandomBot():
                               - 7.94065667e-04 * circle_y \
                               + 0.5704722921109504
                 est_enemy_u = -est_enemy_v * np.tan(np.deg2rad(est_enemy_theta))
-                est_p = np.cos(np.deg2rad(my_az)) * est_enemy_u \
-                        - np.sin(np.deg2rad(my_az)) * est_enemy_v
-                est_q = np.sin(np.deg2rad(my_az)) * est_enemy_u \
-                        + np.cos(np.deg2rad(my_az)) * est_enemy_v
+                est_p = np.cos(np.deg2rad(my_angle.z)) * est_enemy_u \
+                        - np.sin(np.deg2rad(my_angle.z)) * est_enemy_v
+                est_q = np.sin(np.deg2rad(my_angle.z)) * est_enemy_u \
+                        + np.cos(np.deg2rad(my_angle.z)) * est_enemy_v
                 est_dx = est_q
                 est_dy = -est_p
                 est_enemy_x = my_x + est_dx
