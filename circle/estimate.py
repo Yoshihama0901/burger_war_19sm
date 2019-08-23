@@ -13,11 +13,15 @@ df['est_enemy_v'] = 4.58779425e-09 * np.power(df['circle_y'], 4) \
                     + 1.21335973e-04 * np.power(df['circle_y'], 2) \
                     - 7.94065667e-04 * df['circle_y'] \
                     + 0.5704722921109504
-df['est_enemy_u'] = df['est_enemy_v'] * np.tan(np.deg2rad(df['est_enemy_theta']))
-df['est_dx'] = np.cos(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
-               + np.sin(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_v']
-df['est_dy'] = - np.sin(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
-               + np.cos(np.pi / 2 - np.deg2rad(df['my_az'])) * df['est_enemy_v']
+df['est_enemy_u'] = - df['est_enemy_v'] * np.tan(np.deg2rad(df['est_enemy_theta']))
+df['est_p'] = np.cos(np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
+              - np.sin(np.deg2rad(df['my_az'])) * df['est_enemy_v']
+df['est_q'] = np.sin(np.deg2rad(df['my_az'])) * df['est_enemy_u'] \
+              + np.cos(np.deg2rad(df['my_az'])) * df['est_enemy_v']
+
+df['est_dx'] = df['est_q']
+df['est_dy'] = -df['est_p']
+
 df['est_enemy_x'] = df['my_x'] + df['est_dx']
 df['est_enemy_y'] = df['my_y'] + df['est_dy']
 
@@ -27,5 +31,7 @@ df['diff_enemy_theta'] = np.abs(df['est_enemy_theta'] - df['theta'])
 df['diff_enemy_x'] = np.abs(df['est_enemy_x'] - df['enemy_x'])
 df['diff_enemy_y'] = np.abs(df['est_enemy_y'] - df['enemy_y'])
 df['diff_enemy_sin_theta'] = np.abs(df['est_enemy_sin_theta'] - df['sin_theta'])
+
+df = df[['my_x', 'my_y', 'my_az', 'enemy_x', 'enemy_y', 'u', 'v', 'theta', 'sin_theta', 'est_enemy_u', 'est_enemy_v', 'est_enemy_theta', 'est_enemy_sin_theta', 'est_enemy_x', 'est_enemy_y', 'diff_enemy_x', 'diff_enemy_y', 'diff_enemy_u', 'diff_enemy_v', 'diff_enemy_theta', 'diff_enemy_sin_theta']]
 
 df.to_csv(sys.stdout, float_format='%.6f')
