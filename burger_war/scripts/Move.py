@@ -23,7 +23,9 @@ from cv_bridge import CvBridge, CvBridgeError
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
 
-timeScale = 4 # １秒間で何回座標計算するか？
+timeScale  = 4    # １秒間で何回座標計算するか？
+fieldScale = 1.5  # 競技場の広さ
+
 
 # クォータニオンからオイラー角への変換
 def quaternion_to_euler(quaternion):
@@ -39,10 +41,10 @@ def get_rotation_matrix(rad):
 
 # 現在地を２次元ベクトル(n*n)にして返す
 def get_pos_matrix(x, y, n=16):
-    #my_pos  = np.array([self.pos[0], self.pos[1]])  # 現在地点
-    pos     = np.array([x, y])                       # 現在地点
-    rot     = get_rotation_matrix(-45 * np.pi / 180) # 45度回転行列の定義
-    rotated = ( np.dot(rot, pos) / 3.4 ) + 0.5       # 45度回転して最大幅1.7で正規化(0-1)
+    #my_pos  = np.array([self.pos[0], self.pos[1]])           # 現在地点
+    pos     = np.array([x, y])                                # 現在地点
+    rot     = get_rotation_matrix(-45 * np.pi / 180)          # 45度回転行列の定義
+    rotated = ( np.dot(rot, pos) / fieldScale ) + 0.5         # 45度回転して最大幅1.5で正規化(0-1)
     pos_np  = np.zeros([n, n])
     try:    pos_np[int(rotated[0]*n)][int(rotated[1]*n)] = 1
     except: pos_np[int(n/2)][int(n/2)]                   = 1  # はみ出ている場合はエラー処理
@@ -50,7 +52,7 @@ def get_pos_matrix(x, y, n=16):
 
 
 # 自分が向いている向きを２次元ベクトル(n*n)にして返す
-def get_ang_matrix(my_pos, angle, n=16):
+def get_ang_matrix(angle, n=16):
     while angle > 0 : angle -= 360
     while angle < 0 : angle += 360
     my_ang  = np.zeros([n, n])
@@ -80,18 +82,18 @@ def get_ang_matrix(my_pos, angle, n=16):
 def get_sco_matrix(score, point):
     #point = 1
     np_sco = np.zeros([16, 16])
-    if score[8]  == point : np_sco[12,  8] = 1   #  8:Tomato_N
-    if score[9]  == point : np_sco[11,  7] = 1   #  9:Tomato_S
-    if score[10] == point : np_sco[ 7, 11] = 1   # 10:Omelette_N
-    if score[11] == point : np_sco[ 8, 12] = 1   # 11:Omelette_S
-    if score[12] == point : np_sco[ 8,  4] = 1   # 12:Pudding_N
-    if score[13] == point : np_sco[ 7,  3] = 1   # 13:Pudding_S
-    if score[14] == point : np_sco[ 3,  7] = 1   # 14:OctopusWiener_N
-    if score[15] == point : np_sco[ 4,  8] = 1   # 15:OctopusWiener_S
-    if score[16] == point : np_sco[ 8,  8] = 1   # 16:FriedShrimp_N
-    if score[17] == point : np_sco[ 8,  7] = 1   # 17:FriedShrimp_E
-    if score[18] == point : np_sco[ 7,  8] = 1   # 18:FriedShrimp_W
-    if score[19] == point : np_sco[ 7,  7] = 1   # 19:FriedShrimp_S
+    if score[8]  == point : np_sco[12,  7] = 1   #  8:Tomato_N
+    if score[9]  == point : np_sco[11,  8] = 1   #  9:Tomato_S
+    if score[10] == point : np_sco[ 8,  3] = 1   # 10:Omelette_N
+    if score[11] == point : np_sco[ 7,  4] = 1   # 11:Omelette_S
+    if score[12] == point : np_sco[ 8, 11] = 1   # 12:Pudding_N
+    if score[13] == point : np_sco[ 7, 12] = 1   # 13:Pudding_S
+    if score[14] == point : np_sco[ 3,  8] = 1   # 14:OctopusWiener_N
+    if score[15] == point : np_sco[ 4,  7] = 1   # 15:OctopusWiener_S
+    if score[16] == point : np_sco[ 8,  7] = 1   # 16:FriedShrimp_N
+    if score[17] == point : np_sco[ 8,  8] = 1   # 17:FriedShrimp_E
+    if score[18] == point : np_sco[ 7,  7] = 1   # 18:FriedShrimp_W
+    if score[19] == point : np_sco[ 7,  8] = 1   # 19:FriedShrimp_S
     return np_sco
 
 # 自分の側面得点
@@ -103,7 +105,6 @@ def get_side_matrix(side1, side2):
                 if 7 >= i : np_sco[i][j] = 1
             if not side2 == 0 :
                 if 8 <= i : np_sco[i][j] = 1
-    print(np_sco)
     return np_sco
 
 
@@ -113,7 +114,7 @@ class RandomBot():
         self.vel_pub  = rospy.Publisher('cmd_vel', Twist, queue_size=1) # velocity publisher
         self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates, latch=True) # 初期化用
         #self.state    = np.reshape(np.zeros(28), [1, 28])               # 状態
-        self.state    = np.zeros([1, 16, 16, 9])           # 状態
+        self.state    = np.zeros([1, 16, 16, 7])                        # 状態
         self.timer    = 0                                               # 対戦時間
         self.reward   = 0.0                                             # 報酬
         self.my_color = color                                           # 自分の色情報
@@ -137,7 +138,7 @@ class RandomBot():
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
-        self.training = False
+        self.training = True
         if self.debug_log_fname is not None:
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
             with open(self.debug_log_fname, mode='a') as f:
@@ -183,7 +184,7 @@ class RandomBot():
         if reward < -1: reward = -1
         
         # 試合終了
-        if self.timer > 180 * timeScale:
+        if self.timer > 10:
             if self.score[0] > self.score[1] : reward =  1
             if self.score[0] < self.score[1] : reward = -1
         if not self.score[2] == 0 : reward =  1  # 一本勝ち
@@ -205,43 +206,43 @@ class RandomBot():
         my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
         my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
         en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
-        my_ang = get_ang_matrix(my_pos, my_angle.z)        # 自分の向き
+        my_ang = get_ang_matrix(my_angle.z)                # 自分の向き
         
         # 審判情報の更新(点数)
         rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
         my_sco      = get_sco_matrix(self.score,  1)                           # 自分の点数
         en_sco      = get_sco_matrix(self.score, -1)                           # 相手の点数
-        mySide1_sco = my_pos if not self.score[6] == 0 else np.zeros([16, 16]) # 自分側面１の点数
-        mySide2_sco = my_pos if not self.score[7] == 0 else np.zeros([16, 16]) # 自分側面２の点数
-        enSide1_sco = en_pos if not self.score[3] == 0 else np.zeros([16, 16]) # 相手側面１の点数
-        enSide2_sco = en_pos if not self.score[4] == 0 else np.zeros([16, 16]) # 相手側面２の点数
-        
-        mySide_sco  = get_side_matrix(self.score[6], self.score[7])
+        mySide_sco  = get_side_matrix(self.score[6], self.score[7])            # 自分側面の点数
+        enSide_sco  = get_side_matrix(self.score[3], self.score[4])            # 相手側面の点数
 
-        # 状態と報酬の更新( 16 × 16 × 9ch )
-        next_state = np.concatenate([np.expand_dims(my_pos,      axis=2),
-                                     np.expand_dims(en_pos,      axis=2),
-                                     np.expand_dims(my_ang,      axis=2),
-                                     np.expand_dims(my_sco,      axis=2),
-                                     np.expand_dims(en_sco,      axis=2),
-                                     np.expand_dims(mySide1_sco, axis=2),
-                                     np.expand_dims(mySide2_sco, axis=2),
-                                     np.expand_dims(enSide1_sco, axis=2),
-                                     np.expand_dims(enSide2_sco, axis=2)], axis=2)
-        next_state = np.reshape(next_state, [1, 16, 16, 9])       # 現在の状態(自分と相手の位置、点数)
+        # 状態と報酬の更新( 16 × 16 × 7ch )
+        next_state = np.concatenate([np.expand_dims(my_pos,     axis=2),
+                                     np.expand_dims(en_pos,     axis=2),
+                                     np.expand_dims(my_ang,     axis=2),
+                                     np.expand_dims(my_sco,     axis=2),
+                                     np.expand_dims(en_sco,     axis=2),
+                                     np.expand_dims(mySide_sco, axis=2),
+                                     np.expand_dims(enSide_sco, axis=2)], axis=2)
+        next_state = np.reshape(next_state, [1, 16, 16, 7])       # 現在の状態(自分と相手の位置、点数)
         reward     =  self.calc_reward()                          # 報酬
         
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
-        action, linear, angle = self.actor.get_action(self.state, self.timer/timeScale, self.mainQN)
-        twist = Twist()
-        twist.linear.y  = 0; twist.linear.z = 0; twist.angular.x = 0; twist.angular.y = 0
-        twist.linear.x  = linear # 0.2
-        twist.angular.z = angle  #   1
+        action = self.actor.get_action(self.state, self.timer, self.mainQN)
+        if self.timer == 1 : action = np.array([6, 10])
+        print('****action', action, self.timer)
         
-        if self.timer < 7:
-             twist.linear.x  = 0.2
-             twist.angular.z =   0
+        # 移動先  (中心位置をずらした後に45度反時計周りに回転)
+        pos     = (action - 8) * fieldScale/8                     # 目的地
+        rot     = get_rotation_matrix(45 * np.pi / 180)           # 45度回転行列の定義
+        desti   = np.dot(rot, pos)                                # 45度回転
+        
+        # 移動先の角度
+        yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )
+        
+        # 目的地の設定 (X, Y, Yaw)
+        self.setGoal(desti[0], desti[1], yaw)
+        #self.restart()  # ******* 強制Restart用 *******
         
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
@@ -251,8 +252,7 @@ class RandomBot():
         if self.training == True : learn = 1
         else                     : learn = 0
         if self.my_color == 'b'  : learn = 0
-        #batch_size = 32   # Q-networkを更新するバッチの大きさ
-        batch_size = 10   # Q-networkを更新するバッチの大きさ
+        batch_size = 5    # Q-networkを更新するバッチの大きさ
         gamma = 0.99      # 割引係数
         if (self.memory.len() > batch_size) and learn:
             self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
@@ -262,17 +262,18 @@ class RandomBot():
         sys.stdout.flush()
         self.reward = reward
         
-        return twist
+        return Twist()
 
 
     # シュミレーション再開
-    def restart(self, r):
+    def restart(self):
+        self.vel_pub.publish(Twist()) # 動きを止める
         self.memory.reset()
         self.score  = np.zeros(20)
         self.timer  = 0
         self.reward = 0
         subprocess.call('bash ../catkin_ws/src/burger_war/burger_war/scripts/reset_state.sh', shell=True)
-        r.sleep()
+        #r.sleep()
 
 
     # RESPECT @seigot
@@ -311,7 +312,7 @@ class RandomBot():
         r = rospy.Rate(rospy_Rate) # １秒間に送る送信回数 (change speed 1fps)
         
         # Qネットワークとメモリ、Actorの生成--------------------------------------------------------
-        learning_rate = 0.0001          # Q-networkの学習係数
+        learning_rate = 0.0005          # Q-networkの学習係数
         #learning_rate = 0.00001         # Q-networkの学習係数
         memory_size   = 10000           # バッファーメモリの大きさ
         self.mainQN   = DQN.QNetwork(learning_rate=learning_rate)   # メインのQネットワーク
@@ -324,13 +325,12 @@ class RandomBot():
         while not rospy.is_shutdown():
             
             twist = self.calcTwist()    # 移動距離と角度を計算
-            self.vel_pub.publish(twist) # ROSに反映
+            #self.vel_pub.publish(twist) # ROSに反映
             
             if self.training == True:
                 # 試合終了した場合
                 if self.my_color == 'r':
-                    if abs(self.reward) == 1 or self.timer > 180 * timeScale:
-                        self.vel_pub.publish(Twist()) # 動きを止める
+                    if abs(self.reward) == 1 or self.timer > 10:
                         if   self.reward == 0 : print('Draw')
                         elif self.reward == 1 : print('Win!')
                         else                  : print('Lose')
@@ -338,9 +338,10 @@ class RandomBot():
                             writer = csv.writer(f, lineterminator='\n')
                             writer.writerow([self.score[0], self.score[1]])
                         self.mainQN.model.save_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')            # モデルの保存
-                        self.restart(r)                                          # 試合再開
+                        self.restart()                                          # 試合再開
+                        r.sleep()
                 else:
-                    if self.timer % (180 * timeScale) == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
+                    if self.timer % 10 == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
             
             r.sleep()
         
