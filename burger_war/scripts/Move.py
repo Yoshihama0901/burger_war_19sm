@@ -369,11 +369,11 @@ class RandomBot():
         circle_x = -1
         circle_y = -1
         circle_r = -1
-        est_enemy_x = None
-        est_enemy_y = None
-        est_enemy_u = None
-        est_enemy_v = None
-        est_enemy_theta = None
+        est_enemy_x = np.nan
+        est_enemy_y = np.nan
+        est_enemy_u = np.nan
+        est_enemy_v = np.nan
+        est_enemy_theta = np.nan
         my_x = self.pos[0]
         my_y = self.pos[1]
         my_qx = self.pos[2]
