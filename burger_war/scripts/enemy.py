@@ -139,11 +139,15 @@ class RandomBot():
         self.debug_log_fname = None
         #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
         self.training = True
-        self.use_amcl_pose = True
-        if self.use_amcl_pose is True:
+        self.debug_use_gazebo_my_pos = False
+        self.debug_use_gazebo_enemy_pos = True
+        if self.debug_use_gazebo_my_pos is False:
             if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
             if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
-        if True or (self.use_amcl_pose is False) or (self.debug_log_fname is not None):
+        if self.debug_use_gazebo_enemy_pos is False:
+            self.pos[6] = 1.3 if self.my_color == 'r' else -1.3
+            self.pos[7] = 0
+        if (self.debug_use_gazebo_my_pos is True) or (self.debug_use_gazebo_enemy_pos is True):
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
@@ -175,11 +179,12 @@ class RandomBot():
         #print('*********', len(data.pose))
         my = 37 if self.my_color == 'r' else 36
         enemy = 36 if self.my_color == 'r' else 37
-        if self.use_amcl_pose is False:
+        if self.debug_use_gazebo_my_pos is True:
             pos = data.pose[my].position;    self.pos[0] = -pos.y; self.pos[1] = pos.x;
             ori = data.pose[my].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
-        pos = data.pose[enemy].position;    self.pos[6] = -pos.y; self.pos[7] = pos.x;
-        ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
+        if self.debug_use_gazebo_enemy_pos is True:
+            pos = data.pose[enemy].position;    self.pos[6] = -pos.y; self.pos[7] = pos.x;
+            ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
     def calc_reward(self):
@@ -408,12 +413,11 @@ class RandomBot():
                 est_dy = -est_p
                 est_enemy_x = my_x + est_dx
                 est_enemy_y = my_y + est_dy
-        if self.debug_log_fname is None:
-            pass # tentative
-            # if (est_enemy_x is not None) and (est_enemy_y is not None):
-            #     self.pos[6] = est_enemy_x
-            #     self.pos[7] = est_enemy_y
-        else:
+        if self.debug_use_gazebo_enemy_pos is False:
+            if (not np.isnan(est_enemy_x)) and (not np.isnan(est_enemy_y)):
+                self.pos[6] = est_enemy_x
+                self.pos[7] = est_enemy_y
+        if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
                 # pos[6] ... pos[11] are filled in callback_model_state
                 enemy_x = self.pos[6]
