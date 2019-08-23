@@ -233,7 +233,7 @@ class RandomBot():
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
         action = self.actor.get_action(self.state, self.timer, self.mainQN)
-        if self.timer == 1 : action = np.array([6, 10])
+        if self.timer == 1 : action = np.array([5, 11])
         print('****action', action, self.timer)
         
         # 移動先  (中心位置をずらした後に45度反時計周りに回転)
