@@ -139,7 +139,7 @@ class RandomBot():
         camera_resource_name = '/red_bot/image_raw' if self.my_color == 'r' else '/blue_bot/image_raw'
         self.image_pub = rospy.Publisher(camera_resource_name, Image, queue_size=10)
         self.img = None
-        self.preview = False
+        self.debug_preview = False
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
@@ -147,17 +147,21 @@ class RandomBot():
         self.training = True
         self.debug_use_gazebo_my_pos = False
         self.debug_use_gazebo_enemy_pos = False
+        self.debug_gazebo_my_x = np.nan
+        self.debug_gazebo_my_y = np.nan
+        self.debug_gazebo_enemy_x = np.nan
+        self.debug_gazebo_enemy_y = np.nan
         if self.debug_use_gazebo_my_pos is False:
             if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
             if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
         if self.debug_use_gazebo_enemy_pos is False:
             self.pos[6] = 1.3 if self.my_color == 'r' else -1.3
             self.pos[7] = 0
-        if (self.debug_use_gazebo_my_pos is True) or (self.debug_use_gazebo_enemy_pos is True):
+        if (self.debug_use_gazebo_my_pos is True) or (self.debug_use_gazebo_enemy_pos is True) or (self.debug_log_fname is not None):
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
-                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta\n')
+                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta,gazebo_my_x,gazebo_my_y,gazebo_enemy_x,gazebo_enemy_y,diff_my_x,diff_my_y,diff_enemy_x,diff_enemy_y\n')
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot
 
     # スコア情報の更新(war_stateのコールバック関数)
@@ -166,13 +170,16 @@ class RandomBot():
         self.score[0] = json_dict['scores'][self.my_color] # 自分のスコア
         self.score[1] = json_dict['scores'][self.en_color] # 相手のスコア
         if json_dict['state'] == 'running':
-            for i in range(18):
-                #print('*********', len(json_dict['targets']))
-                player = json_dict['targets'][i]['player']
-                if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
-                if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
-            if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
-                for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+            try:
+                for i in range(18):
+                    #print('*********', len(json_dict['targets']))
+                    player = json_dict['targets'][i]['player']
+                    if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
+                    if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
+                if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
+                    for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+            except:
+                print('callback_war_state: Invalid input ' + e)
 
     # 位置情報の更新(amcl_poseのコールバック関数)
     def callback_amcl_pose(self, data):
@@ -183,14 +190,35 @@ class RandomBot():
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
         #print('*********', len(data.pose))
-        my = 37 if self.my_color == 'r' else 36
-        enemy = 36 if self.my_color == 'r' else 37
+        if 'red_bot' in data.name:
+            index_r = data.name.index('red_bot')
+        else:
+            print('callback_model_state: red_bot not found')
+            return
+        if 'blue_bot' in data.name:
+            index_b = data.name.index('blue_bot')
+        else:
+            print('callback_model_state: blue_bot not found')
+            return
+        print('callback_model_state: index_r=', index_r, 'index_b=', index_b)
+        my    = index_r if self.my_color == 'r' else index_b
+        enemy = index_b if self.my_color == 'r' else index_r
+        gazebo_my_x    =  data.pose[my].position.y
+        gazebo_my_y    = -data.pose[my].position.x
+        gazebo_enemy_x =  data.pose[enemy].position.y
+        gazebo_enemy_y = -data.pose[enemy].position.x
         if self.debug_use_gazebo_my_pos is True:
-            pos = data.pose[my].position;    self.pos[0] = -pos.y; self.pos[1] = pos.x;
+            self.pos[0] = gazebo_my_x
+            self.pos[1] = gazebo_my_y
             ori = data.pose[my].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
         if self.debug_use_gazebo_enemy_pos is True:
-            pos = data.pose[enemy].position;    self.pos[6] = -pos.y; self.pos[7] = pos.x;
+            self.pos[6] = gazebo_enemy_x
+            self.pos[7] = gazebo_enemy_y
             ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
+        self.debug_gazebo_my_x    = gazebo_my_x
+        self.debug_gazebo_my_y    = gazebo_my_y
+        self.debug_gazebo_enemy_x = gazebo_enemy_x
+        self.debug_gazebo_enemy_y = gazebo_enemy_y
 
     # 報酬の計算
     def calc_reward(self):
@@ -437,14 +465,17 @@ class RandomBot():
                 enemy_qz = self.pos[10]
                 enemy_qw = self.pos[11]
                 enemy_angle = quaternion_to_euler(Quaternion(enemy_qx, enemy_qy, enemy_qz, enemy_qw))
-                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f\n'
+                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n'
                         % (my_x, my_y, my_qx, my_qy, my_qz, my_qw,
                            my_angle.x, my_angle.y, my_angle.z,
                            enemy_x, enemy_y, enemy_qx, enemy_qy, enemy_qz, enemy_qw,
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
                            circle_x, circle_y, circle_r,
-                           est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta))
-        if self.preview:
+                           est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta,
+                           self.debug_gazebo_my_x, self.debug_gazebo_my_y, self.debug_gazebo_enemy_x, self.debug_gazebo_enemy_y,
+                           my_x - self.debug_gazebo_my_x, my_y - self.debug_gazebo_my_y,
+                           est_enemy_x - self.debug_gazebo_enemy_x, est_enemy_y - self.debug_gazebo_enemy_y))
+        if self.debug_preview:
             hough = self.img.copy()
             if circles is not None:
                 for i in circles[0,:]:
