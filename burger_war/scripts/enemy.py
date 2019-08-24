@@ -19,6 +19,7 @@ import actionlib # RESPECT @seigot
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal # RESPECT @seigot
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+import rosparam
 
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
@@ -145,7 +146,7 @@ class RandomBot():
         self.w_name = "imageview-" + self.my_color
         # cv2.namedWindow(self.w_name, cv2.WINDOW_NORMAL)
         # cv2.moveWindow(self.w_name, 100, 100)
-        camera_resource_name = '/red_bot/image_raw' if self.my_color == 'r' else '/blue_bot/image_raw'
+        camera_resource_name = 'image_raw' if self.my_color == 'r' else 'image_raw'
         self.image_pub = rospy.Publisher(camera_resource_name, Image, queue_size=10)
         self.img = None
         self.debug_preview = False
@@ -161,8 +162,8 @@ class RandomBot():
         self.debug_gazebo_enemy_x = np.nan
         self.debug_gazebo_enemy_y = np.nan
         if self.debug_use_gazebo_my_pos is False:
-            if self.my_color == 'r' : rospy.Subscriber("/red_bot/amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
-            if self.my_color == 'b' : rospy.Subscriber("/blue_bot/amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
+            if self.my_color == 'r' : rospy.Subscriber("amcl_pose",  PoseWithCovarianceStamped, self.callback_amcl_pose)
+            if self.my_color == 'b' : rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.callback_amcl_pose)
         if self.debug_use_gazebo_enemy_pos is False:
             self.pos[6] = 1.3 if self.my_color == 'r' else -1.3
             self.pos[7] = 0
@@ -336,7 +337,7 @@ class RandomBot():
     # RESPECT @seigot
     # do following command first.
     #   $ roslaunch burger_navigation multi_robot_navigation_run.launch
-    #   $ rosservice call /red_bot/move_base_set_logger_level ros.move_base WARN   # 移動時のログを表示しない
+    #   $ rosservice call move_base_set_logger_level ros.move_base WARN   # 移動時のログを表示しない
     def setGoal(self,x,y,yaw):
         self.client.wait_for_server()
         #print('setGoal x=', x, 'y=', y, 'yaw=', yaw)
@@ -503,7 +504,12 @@ class RandomBot():
 
 if __name__ == '__main__':
     
-    color = 'b'
+    rname = rosparam.get_param('randomRun/rname')
+    rside = rosparam.get_param('randomRun/rside')
+    if rname == 'blue_bot' or rside == 'b':
+        color = 'b'
+    else:
+        color = 'r'
     
     rospy.init_node('IntegAI_run')    # 初期化宣言 : このソフトウェアは"IntegAI_run"という名前
     bot = RandomBot('Team Integ AI', color=color)
