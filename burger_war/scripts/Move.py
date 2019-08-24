@@ -143,7 +143,7 @@ class RandomBot():
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
-        #self.debug_log_fname = "circle-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + ".csv"
+        #self.debug_log_fname = 'log-' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + '-' + self.my_color + '.csv'
         self.training = True
         self.debug_use_gazebo_my_pos = False
         self.debug_use_gazebo_enemy_pos = False
