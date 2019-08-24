@@ -138,7 +138,7 @@ class RandomBot():
         camera_resource_name = '/red_bot/image_raw' if self.my_color == 'r' else '/blue_bot/image_raw'
         self.image_pub = rospy.Publisher(camera_resource_name, Image, queue_size=10)
         self.img = None
-        self.preview = False
+        self.debug_preview = False
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
@@ -446,7 +446,7 @@ class RandomBot():
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
                            circle_x, circle_y, circle_r,
                            est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta))
-        if self.preview:
+        if self.debug_preview:
             hough = self.img.copy()
             if circles is not None:
                 for i in circles[0,:]:
