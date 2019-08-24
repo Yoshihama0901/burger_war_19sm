@@ -192,7 +192,8 @@ class RandomBot():
             ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
-    def calc_reward(self):
+    def calc_reward(self, sg):
+        
         # 部分点
         reward = 0.0
         reward = ( self.score[0] - self.score[1] ) / 10.0
@@ -203,8 +204,9 @@ class RandomBot():
         if self.timer > 10:
             if self.score[0] > self.score[1] : reward =  1
             if self.score[0] < self.score[1] : reward = -1
-        if not self.score[2] == 0 : reward =  1  # 一本勝ち
-        if not self.score[5] == 0 : reward = -1  # 一本負け
+        elif not self.score[2] == 0 : reward =  1    # 一本勝ち
+        elif not self.score[5] == 0 : reward = -1    # 一本負け
+        elif sg == -1               : reward = -0.5  # 動かない場合
         
         return reward
 
@@ -238,13 +240,11 @@ class RandomBot():
                                      np.expand_dims(mySide_sco, axis=2),
                                      np.expand_dims(enSide_sco, axis=2)], axis=2)
         next_state = np.reshape(next_state, [1, 16, 16, 7])       # 現在の状態(自分と相手の位置、点数)
-        reward     =  self.calc_reward()                          # 報酬
         
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
         action = self.actor.get_action(self.state, self.timer, self.mainQN)
         if self.timer == 1 : action = np.array([5, 11])
-        print('****action', action, self.timer)
         
         # 移動先  (中心位置をずらした後に45度反時計周りに回転)
         pos     = (action - 8) * fieldScale/8                     # 目的地
@@ -255,12 +255,15 @@ class RandomBot():
         yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )
         
         # 目的地の設定 (X, Y, Yaw)
-        self.setGoal(desti[0], desti[1], yaw)
+        sg = self.setGoal(desti[0], desti[1], yaw)
         #self.restart()  # ******* 強制Restart用 *******
         
         # メモリの更新する
+        reward     =  self.calc_reward(sg)                         # 報酬
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
         self.state = next_state                                    # 状態更新
+        
+        print('****action****', self.my_color, self.timer, action, reward)
         
         # Qネットワークの重みを学習・更新する replay
         if self.training == True : learn = 1
@@ -293,6 +296,7 @@ class RandomBot():
     # RESPECT @seigot
     # do following command first.
     #   $ roslaunch burger_navigation multi_robot_navigation_run.launch
+    #   $ rosservice call /red_bot/move_base_set_logger_level ros.move_base WARN   # 移動時のログを表示しない
     def setGoal(self,x,y,yaw):
         self.client.wait_for_server()
         #print('setGoal x=', x, 'y=', y, 'yaw=', yaw)

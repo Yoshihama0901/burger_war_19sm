@@ -84,7 +84,9 @@ def create_unet(size=16, use_skip_connections=True, grayscale_inputs=True):
     
     # output
     x = Conv2D(1, 1)(x)
-    x = Activation("sigmoid")(x)
+    #x = Activation("sigmoid")(x)
+    #x = Activation("linear")(x)
+    x = Activation("tanh")(x)
     
     model  = Model(input, x)
     
@@ -142,6 +144,7 @@ class QNetwork:
             targets[i] = self.model.predict(state_b)               # Qネットワークの出力
             #targets[i][action_b] = target                         # 教師信号
             targets[i][action_b[0]][action_b[1]] = target          # 教師信号
+            #print('**************************************' , i, targets[i].shape, action_b, target, targets[i])
 
         # shiglayさんよりアドバイスいただき、for文の外へ修正しました
         self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
@@ -188,7 +191,7 @@ class Actor:
         # 徐々に最適行動のみをとる、ε-greedy法
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
-        epsilon = 0.4
+        epsilon = 0.3
         
         # 移動禁止箇所
         ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
