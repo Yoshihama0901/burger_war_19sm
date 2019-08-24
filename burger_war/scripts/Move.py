@@ -200,7 +200,7 @@ class RandomBot():
         else:
             print('callback_model_state: blue_bot not found')
             return
-        print('callback_model_state: index_r=', index_r, 'index_b=', index_b)
+        #print('callback_model_state: index_r=', index_r, 'index_b=', index_b)
         my    = index_r if self.my_color == 'r' else index_b
         enemy = index_b if self.my_color == 'r' else index_r
         gazebo_my_x    =  data.pose[my].position.y
