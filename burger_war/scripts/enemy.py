@@ -113,6 +113,15 @@ def get_side_matrix(side1, side2):
                 if 8 <= i : np_sco[i][j] = 1
     return np_sco
 
+# gazebo座標からamcl_pose座標に変換する
+def convert_coord_from_gazebo_to_amcl(my_color, gazebo_x, gazebo_y):
+    if my_color == 'r':
+        amcl_x    =  gazebo_y
+        amcl_y    = -gazebo_x
+    else:
+        amcl_x    = -gazebo_y
+        amcl_y    =  gazebo_x
+    return amcl_x, amcl_y
 
 class RandomBot():
     def __init__(self, bot_name, color='r'):
@@ -203,10 +212,8 @@ class RandomBot():
         #print('callback_model_state: index_r=', index_r, 'index_b=', index_b)
         my    = index_r if self.my_color == 'r' else index_b
         enemy = index_b if self.my_color == 'r' else index_r
-        gazebo_my_x    =  data.pose[my].position.y
-        gazebo_my_y    = -data.pose[my].position.x
-        gazebo_enemy_x =  data.pose[enemy].position.y
-        gazebo_enemy_y = -data.pose[enemy].position.x
+        gazebo_my_x,    gazebo_my_y    = convert_coord_from_gazebo_to_amcl(self.my_color, data.pose[my   ].position.x, data.pose[my   ].position.y)
+        gazebo_enemy_x, gazebo_enemy_y = convert_coord_from_gazebo_to_amcl(self.my_color, data.pose[enemy].position.x, data.pose[enemy].position.y)
         if self.debug_use_gazebo_my_pos is True:
             self.pos[0] = gazebo_my_x
             self.pos[1] = gazebo_my_y
