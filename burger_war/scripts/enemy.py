@@ -238,9 +238,12 @@ class RandomBot():
         #if reward < -1: reward = -1
         
         # 試合終了
+        #print('+++***+++', self.score)
         if self.timer > turnEnd:
             if self.score[0] >  self.score[1] : reward =  1
             if self.score[0] <= self.score[1] : reward = -1
+        if self.score[0] >= 100 : reward =  1      # 一本勝ち
+        if self.score[1] >= 100 : reward = -1      # 一本負け
         if not self.score[2] == 0 : reward =  1    # 一本勝ち
         if not self.score[5] == 0 : reward = -1    # 一本負け
         
@@ -305,13 +308,14 @@ class RandomBot():
         if self.training == True : learn = 1
         else                     : learn = 0
         if self.my_color == 'b'  : learn = 0
-        batch_size = 10   # Q-networkを更新するバッチの大きさ
+        #batch_size = 10   # Q-networkを更新するバッチの大きさ
+        batch_size = self.timer - 1   # Q-networkを更新するバッチの大きさ
         gamma = 0.97      # 割引係数
-        if (self.memory.len() > batch_size) and learn:
+        if (batch_size >= 2 and self.memory.len() > batch_size) and learn:
+            #print('call replay timer=', self.timer)
             self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         
-        #print('Time:%3.0f  Reward:%3.1f  Linar:%4.1f  Angle:%2.0f' % (self.timer, reward, twist.linear.x, twist.angular.z))
         sys.stdout.flush()
         self.reward = reward
         
