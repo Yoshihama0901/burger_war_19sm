@@ -166,13 +166,16 @@ class RandomBot():
         self.score[0] = json_dict['scores'][self.my_color] # 自分のスコア
         self.score[1] = json_dict['scores'][self.en_color] # 相手のスコア
         if json_dict['state'] == 'running':
-            for i in range(18):
-                #print('*********', len(json_dict['targets']))
-                player = json_dict['targets'][i]['player']
-                if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
-                if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
-            if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
-                for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+            try:
+                for i in range(18):
+                    #print('*********', len(json_dict['targets']))
+                    player = json_dict['targets'][i]['player']
+                    if player == self.my_color : self.score[2+i] =  float(json_dict['targets'][i]['point'])
+                    if player == self.en_color : self.score[2+i] = -float(json_dict['targets'][i]['point'])
+                if self.my_color == 'b':                           # 自分が青色だった場合、相手と自分を入れ替える
+                    for i in range(3) : self.score[2+i], self.score[5+i] = self.score[5+i], self.score[2+i]
+            except:
+                print('callback_war_state: Invalid input ' + e)
 
     # 位置情報の更新(amcl_poseのコールバック関数)
     def callback_amcl_pose(self, data):
