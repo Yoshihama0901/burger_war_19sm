@@ -161,7 +161,7 @@ class RandomBot():
             rospy.Subscriber("/gazebo/model_states", ModelStates, self.callback_model_state, queue_size=10)
         if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
-                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta,gazebo_my_x,gazebo_my_y,gazebo_enemy_x,gazebo_enemy_y\n')
+                f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta,gazebo_my_x,gazebo_my_y,gazebo_enemy_x,gazebo_enemy_y,diff_my_x,diff_my_y,diff_enemy_x,diff_enemy_y\n')
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot
 
     # スコア情報の更新(war_stateのコールバック関数)
@@ -465,14 +465,16 @@ class RandomBot():
                 enemy_qz = self.pos[10]
                 enemy_qw = self.pos[11]
                 enemy_angle = quaternion_to_euler(Quaternion(enemy_qx, enemy_qy, enemy_qz, enemy_qw))
-                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f\n'
+                f.write('%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n'
                         % (my_x, my_y, my_qx, my_qy, my_qz, my_qw,
                            my_angle.x, my_angle.y, my_angle.z,
                            enemy_x, enemy_y, enemy_qx, enemy_qy, enemy_qz, enemy_qw,
                            enemy_angle.x, enemy_angle.y, enemy_angle.z,
                            circle_x, circle_y, circle_r,
                            est_enemy_x, est_enemy_y, est_enemy_u, est_enemy_v, est_enemy_theta,
-                           self.debug_gazebo_my_x, self.debug_gazebo_my_y, self.debug_gazebo_enemy_x, self.debug_gazebo_enemy_y))
+                           self.debug_gazebo_my_x, self.debug_gazebo_my_y, self.debug_gazebo_enemy_x, self.debug_gazebo_enemy_y,
+                           my_x - self.debug_gazebo_my_x, my_y - self.debug_gazebo_my_y,
+                           est_enemy_x - self.debug_gazebo_enemy_x, est_enemy_y - self.debug_gazebo_enemy_y))
         if self.debug_preview:
             hough = self.img.copy()
             if circles is not None:
