@@ -85,8 +85,8 @@ def create_unet(size=16, use_skip_connections=True, grayscale_inputs=True):
     # output
     x = Conv2D(1, 1)(x)
     #x = Activation("sigmoid")(x)
-    #x = Activation("linear")(x)
-    x = Activation("tanh")(x)
+    x = Activation("linear")(x)
+    #x = Activation("tanh")(x)
     
     model  = Model(input, x)
     
@@ -140,6 +140,14 @@ class QNetwork:
                 
                 target = reward_b + gamma * targetQs[next_action[0]][next_action[1]]
                 #target = reward_b + gamma * targetQN.model.predict(next_state_b)[0][next_action]
+                
+                # 移動不能箇所を指定していたら報酬を少し減らす
+                ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
+                flag   = False
+                for a in ban:
+                    if a[0] == action_b[0] and a[1] == action_b[1] : flag = True
+                if flag or (action_b[0] < 3) or (action_b[1] < 3) or (action_b[0] > 13) or (action_b[1] > 13):
+                    target = target - 0.1
 
             targets[i] = self.model.predict(state_b)               # Qネットワークの出力
             #targets[i][action_b] = target                         # 教師信号
@@ -197,22 +205,24 @@ class Actor:
         ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
         
         if epsilon <= np.random.uniform(0, 1):
+            print('Learned')
             retTargetQs = mainQN.model.predict(state)[0]    # (16, 16, 1)
             retTargetQs = np.reshape(retTargetQs, (16, 16)) # (16, 16, 1)
             action      = np.unravel_index(np.argmax(retTargetQs), retTargetQs.shape)
             action      = np.array(action)
-            
+            '''
             # 学習結果が移動禁止箇所だったらランダムを入れておく
             flag   = False
             for a in ban:
                 if a[0] == action[0] and a[1] == action[1] : flag = True
-            if flag or action[0] < 3 or action[1] < 3 or action[0] > 13 or action[1] > 13:
+            if flag or (action[0] < 3) or (action[1] < 3) or (action[0] > 13) or (action[1] > 13):
+                print('Random 1 flag=', flag, 'action=', action)
                 action = generateRandomDestination(ban)
-                print('Random')
             else:
                 print('Learned')
+            '''
         else:
-            print('Random')
+            print('Random 2')
             # 移動禁止箇所以外へランダムに行動する
             action = generateRandomDestination(ban)
 

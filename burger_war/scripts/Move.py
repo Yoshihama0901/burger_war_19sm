@@ -25,7 +25,7 @@ from MyModule import DQN
 
 timeScale  = 4    # １秒間で何回座標計算するか？
 fieldScale = 1.5  # 競技場の広さ
-turnEnd    = 15   # 何ターンで１試合を終了させるか
+turnEnd    = 40   # 何ターンで１試合を終了させるか
 
 
 # クォータニオンからオイラー角への変換
@@ -193,21 +193,21 @@ class RandomBot():
             ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
-    def calc_reward(self, sg):
+    def calc_reward(self):
+        
+        reward = 0.0
         
         # 部分点
-        reward = 0.0
-        reward = ( self.score[0] - self.score[1] ) / 10.0
-        if reward >  1: reward =  1
-        if reward < -1: reward = -1
+        #reward = ( self.score[0] - self.score[1] ) / 10.0
+        #if reward >  1: reward =  1
+        #if reward < -1: reward = -1
         
         # 試合終了
         if self.timer > turnEnd:
-            if self.score[0] > self.score[1] : reward =  1
-            if self.score[0] < self.score[1] : reward = -1
-        elif not self.score[2] == 0 : reward =  1    # 一本勝ち
-        elif not self.score[5] == 0 : reward = -1    # 一本負け
-        elif sg == -1               : reward = -0.5  # 動かない場合
+            if self.score[0] >  self.score[1] : reward =  1
+            if self.score[0] <= self.score[1] : reward = -1
+        if not self.score[2] == 0 : reward =  1    # 一本勝ち
+        if not self.score[5] == 0 : reward = -1    # 一本負け
         
         return reward
 
@@ -256,11 +256,11 @@ class RandomBot():
         yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )
         
         # 目的地の設定 (X, Y, Yaw)
-        sg = self.setGoal(desti[0], desti[1], yaw)
+        self.setGoal(desti[0], desti[1], yaw)
         #self.restart()  # ******* 強制Restart用 *******
         
         # メモリの更新する
-        reward     =  self.calc_reward(sg)                         # 報酬
+        reward     =  self.calc_reward()                           # 報酬
         self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
         self.state = next_state                                    # 状態更新
         
@@ -270,8 +270,8 @@ class RandomBot():
         if self.training == True : learn = 1
         else                     : learn = 0
         if self.my_color == 'b'  : learn = 0
-        batch_size = 5    # Q-networkを更新するバッチの大きさ
-        gamma = 0.99      # 割引係数
+        batch_size = 10   # Q-networkを更新するバッチの大きさ
+        gamma = 0.97      # 割引係数
         if (self.memory.len() > batch_size) and learn:
             self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
@@ -316,12 +316,10 @@ class RandomBot():
         goal.target_pose.pose.orientation.z = q[2]
         goal.target_pose.pose.orientation.w = q[3]
 
-        self.client.send_goal(goal)
-        wait = self.client.wait_for_result()
-        if not wait:
-            rospy.logerr("Action server not available!")
-            rospy.signal_shutdown("Action server not available!")
-            return -1
+        # Stateの戻り値詳細：PENDING, ACTIVE, RECALLED, REJECTED, PREEMPTED, ABORTED, SUCCEEDED, LOST
+        #  https://docs.ros.org/diamondback/api/actionlib/html/classactionlib_1_1SimpleClientGoalState.html#a91066f14351d31404a2179da02c518a0a2f87385336ac64df093b7ea61c76fafe
+        state = self.client.send_goal_and_wait(goal, execute_timeout=rospy.Duration(5))
+        #print(self.my_color, "state=", state)
 
         return 0
 
@@ -360,7 +358,9 @@ class RandomBot():
                         self.restart()                                          # 試合再開
                         r.sleep()
                 else:
-                    if self.timer % turnEnd == 0 : self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
+                    if self.timer % turnEnd == 0 :
+                        self.memory.reset()
+                        self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')                # 重みの読み込み
             
             r.sleep()
         
