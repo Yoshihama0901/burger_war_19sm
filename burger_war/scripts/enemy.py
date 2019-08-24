@@ -189,8 +189,19 @@ class RandomBot():
     # 位置情報の更新(model_stateのコールバック関数)
     def callback_model_state(self, data):
         #print('*********', len(data.pose))
-        my = 37 if self.my_color == 'r' else 36
-        enemy = 36 if self.my_color == 'r' else 37
+        if 'red_bot' in data.name:
+            index_r = data.name.index('red_bot')
+        else:
+            print('callback_model_state: red_bot not found')
+            return
+        if 'blue_bot' in data.name:
+            index_b = data.name.index('blue_bot')
+        else:
+            print('callback_model_state: blue_bot not found')
+            return
+        print('callback_model_state: index_r=', index_r, 'index_b=', index_b)
+        my    = index_r if self.my_color == 'r' else index_b
+        enemy = index_b if self.my_color == 'r' else index_r
         gazebo_my_x    =  data.pose[my].position.y
         gazebo_my_y    = -data.pose[my].position.x
         gazebo_enemy_x =  data.pose[enemy].position.y
