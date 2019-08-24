@@ -7,10 +7,12 @@
     <!-- Your robot control node run -->
     
     <include file="$(find burger_navigation)/launch/your_burger_navigation_sample.launch">
-      <arg name="robot_name" value="red_bot" />
+      <arg name="robot_name" value="$(arg robot_name)" />
     </include>
 
-    <node pkg="burger_war" type="Move.py" name="randomRun" output="screen"/>
+    <node pkg="burger_war" type="Move.py" name="randomRun" output="screen">
+      <param name="rname" value="$(arg robot_name)" />
+    </node>
 
     <!-- END sample program node -->
 
