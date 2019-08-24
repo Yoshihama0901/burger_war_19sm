@@ -19,7 +19,8 @@ import actionlib # RESPECT @seigot
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal # RESPECT @seigot
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
-
+import rosparam
+ 
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
 
@@ -503,8 +504,13 @@ class RandomBot():
 
 if __name__ == '__main__':
     
-    color = 'r'
-    
+    rname = rosparam.get_param('randomRun/rname')
+    rside = rosparam.get_param('randomRun/rside')
+    if rname == 'red_bot' or rside == 'r':
+        color = 'r'
+    else:
+        color = 'b'
+
     rospy.init_node('IntegAI_run')    # 初期化宣言 : このソフトウェアは"IntegAI_run"という名前
     bot = RandomBot('Team Integ AI', color=color)
     

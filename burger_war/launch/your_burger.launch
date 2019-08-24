@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="robot_name" default=""/> <!-- robot_name for use NAMESPACE -->
-  <arg name="side" default="b"/> <!-- "b" = blue side, "r" = red side  -->
+  <arg name="side" default="r"/> <!-- "b" = blue side, "r" = red side  -->
 
     <!-- You can change control program  -->
 
@@ -14,6 +14,7 @@
 
     <node pkg="burger_war" type="Move.py" name="randomRun" output="screen">
       <param name="rname" value="$(arg robot_name)" />
+      <param name="rside" value="$(arg side)" />
     </node>
 
     <!-- END sample program node -->
