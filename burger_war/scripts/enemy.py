@@ -187,11 +187,17 @@ class RandomBot():
         #print('*********', len(data.pose))
         my = 37 if self.my_color == 'r' else 36
         enemy = 36 if self.my_color == 'r' else 37
+        gazebo_my_x    =  data.pose[my].position.y
+        gazebo_my_y    = -data.pose[my].position.x
+        gazebo_enemy_x =  data.pose[enemy].position.y
+        gazebo_enemy_y = -data.pose[enemy].position.x
         if self.debug_use_gazebo_my_pos is True:
-            pos = data.pose[my].position;    self.pos[0] = -pos.y; self.pos[1] = pos.x;
+            self.pos[0] = gazebo_my_x
+            self.pos[1] = gazebo_my_y
             ori = data.pose[my].orientation; self.pos[2] = ori.x; self.pos[3] = ori.y; self.pos[4]  = ori.z; self.pos[5]  = ori.w
         if self.debug_use_gazebo_enemy_pos is True:
-            pos = data.pose[enemy].position;    self.pos[6] = -pos.y; self.pos[7] = pos.x;
+            self.pos[6] = gazebo_enemy_x
+            self.pos[7] = gazebo_enemy_y
             ori = data.pose[enemy].orientation; self.pos[8] = ori.x; self.pos[9] = ori.y; self.pos[10] = ori.z; self.pos[11] = ori.w
 
     # 報酬の計算
