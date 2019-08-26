@@ -20,7 +20,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal # RESPECT @seigot
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import rosparam
-
+ 
 # 強化学習DQN (Deep Q Network)
 from MyModule import DQN
 
@@ -125,12 +125,40 @@ def convert_coord_from_gazebo_to_amcl(my_color, gazebo_x, gazebo_y):
     return amcl_x, amcl_y
 
 class RandomBot():
+
+    # 現在の状態を取得
+    def getState(self):
+        
+        # 位置情報
+        my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
+        my_pos = get_pos_matrix(self.pos[0], self.pos[1])                      # 自分の位置
+        en_pos = get_pos_matrix(self.pos[6], self.pos[7]                    )  # 相手の位置
+        my_ang = get_ang_matrix(my_angle.z)                                    # 自分の向き
+        
+        # 審判情報の更新(点数)
+        rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
+        my_sco      = get_sco_matrix(self.score,  1)                           # 自分の点数
+        en_sco      = get_sco_matrix(self.score, -1)                           # 相手の点数
+        mySide_sco  = get_side_matrix(self.score[6], self.score[7])            # 自分側面の点数
+        enSide_sco  = get_side_matrix(self.score[3], self.score[4])            # 相手側面の点数
+
+        # 状態と報酬の更新( 16 × 16 × 7ch )
+        state       = np.concatenate([np.expand_dims(my_pos,     axis=2),
+                                     np.expand_dims(en_pos,     axis=2),
+                                     np.expand_dims(my_ang,     axis=2),
+                                     np.expand_dims(my_sco,     axis=2),
+                                     np.expand_dims(en_sco,     axis=2),
+                                     np.expand_dims(mySide_sco, axis=2),
+                                     np.expand_dims(enSide_sco, axis=2)], axis=2)
+        state       = np.reshape(state, [1, 16, 16, 7])                         # 現在の状態(自分と相手の位置、点数)
+        
+        return state
+
+
     def __init__(self, bot_name, color='r'):
         self.name     = bot_name                                        # bot name 
         self.vel_pub  = rospy.Publisher('cmd_vel', Twist, queue_size=1) # velocity publisher
         self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates, latch=True) # 初期化用
-        #self.state    = np.reshape(np.zeros(28), [1, 28])               # 状態
-        self.state    = np.zeros([1, 16, 16, 7])                        # 状態
         self.timer    = 0                                               # 対戦時間
         self.reward   = 0.0                                             # 報酬
         self.my_color = color                                           # 自分の色情報
@@ -172,7 +200,12 @@ class RandomBot():
         if self.debug_log_fname is not None:
             with open(self.debug_log_fname, mode='a') as f:
                 f.write('my_x,my_y,my_qx,my_qy,my_qz,my_qw,my_ax,my_ay,my_az,enemy_x,enemy_y,enemy_qx,enemy_qy,enemy_qz,enemy_qw,enemy_ax,enemy_ay,enemy_az,circle_x,circle_y,circle_r,est_enemy_x,est_enemy_y,est_enemy_u,est_enemy_v,est_enemy_theta,gazebo_my_x,gazebo_my_y,gazebo_enemy_x,gazebo_enemy_y,diff_my_x,diff_my_y,diff_enemy_x,diff_enemy_y\n')
-        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot
+        self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) # RESPECT @seigot]
+        
+        # 初期状態を取得
+        #self.state = np.zeros([1, 16, 16, 7])                        # 状態
+        self.state = self.getState()
+        
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -258,63 +291,44 @@ class RandomBot():
         
         self.timer += 1
         
-        # 位置情報
-        my_angle = quaternion_to_euler(Quaternion(self.pos[2], self.pos[3], self.pos[4], self.pos[5]))
-        my_pos = get_pos_matrix(self.pos[0], self.pos[1])  # 自分の位置
-        en_pos = get_pos_matrix(self.pos[6], self.pos[7])  # 相手の位置
-        my_ang = get_ang_matrix(my_angle.z)                # 自分の向き
-        
-        # 審判情報の更新(点数)
-        rospy.Subscriber("war_state", String, self.callback_war_state, queue_size=10)
-        my_sco      = get_sco_matrix(self.score,  1)                           # 自分の点数
-        en_sco      = get_sco_matrix(self.score, -1)                           # 相手の点数
-        mySide_sco  = get_side_matrix(self.score[6], self.score[7])            # 自分側面の点数
-        enSide_sco  = get_side_matrix(self.score[3], self.score[4])            # 相手側面の点数
-
-        # 状態と報酬の更新( 16 × 16 × 7ch )
-        next_state = np.concatenate([np.expand_dims(my_pos,     axis=2),
-                                     np.expand_dims(en_pos,     axis=2),
-                                     np.expand_dims(my_ang,     axis=2),
-                                     np.expand_dims(my_sco,     axis=2),
-                                     np.expand_dims(en_sco,     axis=2),
-                                     np.expand_dims(mySide_sco, axis=2),
-                                     np.expand_dims(enSide_sco, axis=2)], axis=2)
-        next_state = np.reshape(next_state, [1, 16, 16, 7])       # 現在の状態(自分と相手の位置、点数)
+        # 現在の状態を取得
+        #self.state = self.getState()
         
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
-        action = self.actor.get_action(self.state, self.timer, self.mainQN)
+        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color)
         if self.timer == 1 : action = np.array([5, 11])
         
-        # 移動先  (中心位置をずらした後に45度反時計周りに回転)
-        pos     = (action - 8) * fieldScale/8                     # 目的地
-        rot     = get_rotation_matrix(45 * np.pi / 180)           # 45度回転行列の定義
-        desti   = np.dot(rot, pos)                                # 45度回転
+        # 移動先と角度  (中心位置をずらした後に45度反時計周りに回転)
+        pos     = (action - 8) * fieldScale/8                                   # 目的地
+        rot     = get_rotation_matrix(45 * np.pi / 180)                         # 45度回転行列の定義
+        desti   = np.dot(rot, pos)                                              # 45度回転
+        yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )      # 移動先の角度
+        if self.my_color == 'r' : print('****action****', self.my_color, self.timer, action)
         
-        # 移動先の角度
-        yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )
-        
-        # 目的地の設定 (X, Y, Yaw)
+        # Actionに従った行動  目的地の設定 (X, Y, Yaw)
         self.setGoal(desti[0], desti[1], yaw)
         #self.restart()  # ******* 強制Restart用 *******
         
-        # メモリの更新する
-        reward     =  self.calc_reward()                           # 報酬
-        self.memory.add((self.state, action, reward, next_state))  # メモリの更新する
-        self.state = next_state                                    # 状態更新
+        # Action後の状態と報酬を取得
+        next_state = self.getState()                                            # Action後の状態
+        reward     =  self.calc_reward()                                        # Actionの結果の報酬
         
-        print('****action****', self.my_color, self.timer, action, reward)
+        # メモリの更新する
+        self.memory.add((self.state, action, reward, next_state))               # メモリの更新する
+        self.state = next_state                                                 # 状態更新
+        if abs(reward) == 1 : np.zeros([1, 16, 16, 7])                          # 試合終了時は次の状態はない
         
         # Qネットワークの重みを学習・更新する replay
         if self.training == True : learn = 1
         else                     : learn = 0
         if self.my_color == 'b'  : learn = 0
-        #batch_size = 10   # Q-networkを更新するバッチの大きさ
-        batch_size = self.timer - 1   # Q-networkを更新するバッチの大きさ
+        batch_size = 40   # Q-networkを更新するバッチの大きさ
+        #batch_size = self.timer - 1   # Q-networkを更新するバッチの大きさ
         gamma = 0.97      # 割引係数
         if (batch_size >= 2 and self.memory.len() > batch_size) and learn:
             #print('call replay timer=', self.timer)
-            self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN)
+            self.mainQN.replay(self.memory, batch_size, gamma, self.targetQN, self.my_color)
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         
         sys.stdout.flush()
@@ -369,9 +383,10 @@ class RandomBot():
         r = rospy.Rate(rospy_Rate) # １秒間に送る送信回数 (change speed 1fps)
         
         # Qネットワークとメモリ、Actorの生成--------------------------------------------------------
-        learning_rate = 0.0005          # Q-networkの学習係数
         #learning_rate = 0.00001         # Q-networkの学習係数
-        memory_size   = 10000           # バッファーメモリの大きさ
+        #memory_size   = 10000           # バッファーメモリの大きさ
+        learning_rate = 0.0005          # Q-networkの学習係数
+        memory_size   = 400             # バッファーメモリの大きさ
         self.mainQN   = DQN.QNetwork(learning_rate=learning_rate)   # メインのQネットワーク
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)

@@ -13,7 +13,7 @@ from keras.utils import plot_model
 from keras.models import Model
 from keras.models import Sequential
 from keras.layers import *
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 
 # 次の行動を決める
 def action_select(action):
@@ -100,21 +100,81 @@ def cba(inputs, filters, kernel_size, strides):
     return x
 
 
+
+
+def _shortcut(inputs, residual):
+
+    # _keras_shape[3] チャンネル数
+    n_filters = residual._keras_shape[3]
+
+    # inputs と residual とでチャネル数が違うかもしれない。
+    # そのままだと足せないので、1x1 conv を使って residual 側のフィルタ数に合わせている
+    shortcut = Convolution2D(n_filters, (1,1), strides=(1,1), padding='valid')(inputs)
+
+    # 2つを足す
+    return add([shortcut, residual])
+
+
+def _resblock(n_filters, strides=(1,1)):
+    def f(input):    
+        x = Convolution2D(n_filters, (3,3), strides=strides, kernel_initializer='he_normal', padding='same')(input)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        x = Convolution2D(n_filters, (3,3), strides=strides, kernel_initializer='he_normal', padding='same')(x)
+        x = BatchNormalization()(x)
+
+        return _shortcut(input, x)
+
+    return f
+
+
+def resnet():
+
+    #inputs = Input(shape=(32, 32, 3))
+    inputs = Input(shape=(16, 16, 7))
+    
+    x = Convolution2D(32, (7,7), strides=(1,1), kernel_initializer='he_normal', padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    #x = MaxPooling2D((3, 3), strides=(2,2), padding='same')(x)
+
+    x = _resblock(n_filters=64)(x)
+    x = _resblock(n_filters=64)(x)
+    x = _resblock(n_filters=64)(x)
+    x = _resblock(n_filters=128)(x)
+    x = _resblock(n_filters=128)(x)
+    x = _resblock(n_filters=128)(x)
+    x = BatchNormalization()(x)
+    
+    x = Convolution2D(1, (3,3), strides=(1,1), kernel_initializer='he_normal', padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Convolution2D(1, (3,3), strides=(1,1), kernel_initializer='he_normal', padding='same')(x)
+    x = Activation('linear')(x)
+    
+    model  = Model(inputs, x)
+    
+    return model
+
+
 # [2]Q関数をディープラーニングのネットワークをクラスとして定義
 class QNetwork:
     def __init__(self, learning_rate=0.01):
         self.debug_log = True
         
-        self.model = create_unet()
+        #self.model = create_unet()
+        self.model = resnet()
         
-        self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
+        #self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
+        #self.optimizer = Adam()
+        self.optimizer = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        
         self.model.compile(loss=huberloss, optimizer=self.optimizer)
         
         if self.debug_log == True:
             self.model.summary()
 
     # 重みの学習
-    def replay(self, memory, batch_size, gamma, targetQN):
+    def replay(self, memory, batch_size, gamma, targetQN, bot_color):
         inputs  = np.zeros((batch_size, 16, 16, 7))
         targets = np.zeros((batch_size, 16, 16, 1))
         mini_batch = memory.sample(batch_size)
@@ -124,35 +184,42 @@ class QNetwork:
             inputs[i:i + 1] = state_b
             target = reward_b
 
-            #if not (next_state_b == np.zeros(state_b.shape)).all(axis=1): # 状態が全部ゼロじゃない場合
-            if 1:
+            #if 1:
+            if reward_b == 0:
+            #if not np.sum(next_state_b) == 0: # 状態が全部ゼロじゃない場合
                 # 価値計算（DDQNにも対応できるように、行動決定のQネットワークと価値観数のQネットワークは分離）
                 retmainQs = self.model.predict(next_state_b)[0]    # (16, 16, 1)
                 retmainQs = np.reshape(retmainQs, (16, 16))        # (16, 16)
                 
                 # 最大の報酬を返す行動を選択する
                 next_action = np.unravel_index(np.argmax(retmainQs), retmainQs.shape)
-                #print(next_action)
-                #next_action = np.argmax(retmainQs)      # 最大の報酬を返す行動を選択する
                 
-                targetQs = targetQN.model.predict(next_state_b)[0] # (16, 16, 1)
-                targetQs = np.reshape(targetQs, (16, 16))          # (16, 16, 1)
+                targetQs    = targetQN.model.predict(next_state_b)[0] # (16, 16, 1)
+                targetQs    = np.reshape(targetQs, (16, 16))          # (16, 16, 1)
+                next_reward = targetQs[next_action[0]][next_action[1]]
+                if next_reward > 1 : next_reward = 0.95
                 
-                target = reward_b + gamma * targetQs[next_action[0]][next_action[1]]
-                #target = reward_b + gamma * targetQN.model.predict(next_state_b)[0][next_action]
+                target = reward_b + gamma * next_reward
                 
-                # 移動不能箇所を指定していたら報酬を少し減らす
-                ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
-                flag   = False
-                for a in ban:
-                    if a[0] == action_b[0] and a[1] == action_b[1] : flag = True
-                if flag or (action_b[0] < 3) or (action_b[1] < 3) or (action_b[0] > 13) or (action_b[1] > 13):
-                    target = target - 0.1
+                # 移動不能箇所を指定していたら最低値
+                #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
+                #flag   = False
+                #for a in ban:
+                #    if a[0] == action_b[0] and a[1] == action_b[1] : flag = True
+                #if flag or (action_b[0] < 3) or (action_b[1] < 3) or (action_b[0] > 13) or (action_b[1] > 13):
+                #    target = -1
 
             targets[i] = self.model.predict(state_b)               # Qネットワークの出力
-            #targets[i][action_b] = target                         # 教師信号
+            #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
+            
+            for k in range(16):
+                for l in range(16):
+                    if abs(targets[i][k][l]) > 1 : targets[i][k][l] = 0
+            
             targets[i][action_b[0]][action_b[1]] = target          # 教師信号
-            #print('**************************************' , i, targets[i].shape, action_b, target, targets[i])
+            np.set_printoptions(precision=1)
+            if bot_color == 'r' : print(i, reward_b, action_b, target)
+            #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
 
         # shiglayさんよりアドバイスいただき、for文の外へ修正しました
         self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
@@ -161,12 +228,13 @@ class QNetwork:
 # [3]Experience ReplayとFixed Target Q-Networkを実現するメモリクラス
 class Memory:
     def __init__(self, max_size=1000):
-        self.max_size = max_size
-        self.reset()
-        #self.buffer = deque(maxlen=max_size)
+        self.buffer = deque(maxlen=max_size)
+        #self.max_size = max_size
+        #self.reset()
 
     def reset(self):
-        self.buffer = deque(maxlen=self.max_size)
+        pass
+        #self.buffer = deque(maxlen=self.max_size)
 
     def add(self, experience):
         self.buffer.append(experience)
@@ -195,34 +263,34 @@ class Actor:
     def __init__(self):
         self.debug_log = True
 
-    def get_action(self, state, episode, mainQN):   # [C]ｔ＋１での行動を返す
+    def get_action(self, state, episode, mainQN, bot_color):   # [C]ｔ＋１での行動を返す
         # 徐々に最適行動のみをとる、ε-greedy法
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
-        epsilon = 0.3
+        epsilon = 0.1
         
         # 移動禁止箇所
         ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
         
         if epsilon <= np.random.uniform(0, 1):
-            print('Learned')
+            #if bot_color == 'r' : print('Learned')
             retTargetQs = mainQN.model.predict(state)[0]    # (16, 16, 1)
             retTargetQs = np.reshape(retTargetQs, (16, 16)) # (16, 16, 1)
             action      = np.unravel_index(np.argmax(retTargetQs), retTargetQs.shape)
             action      = np.array(action)
-            '''
+            
             # 学習結果が移動禁止箇所だったらランダムを入れておく
             flag   = False
             for a in ban:
                 if a[0] == action[0] and a[1] == action[1] : flag = True
             if flag or (action[0] < 3) or (action[1] < 3) or (action[0] > 13) or (action[1] > 13):
-                print('Random 1 flag=', flag, 'action=', action)
+                if bot_color == 'r' : print('Random flag=', flag, 'action=', action)
                 action = generateRandomDestination(ban)
             else:
-                print('Learned')
-            '''
+                if bot_color == 'r' : print('Learned')
+            
         else:
-            print('Random 2')
+            if bot_color == 'r' : print('Random')
             # 移動禁止箇所以外へランダムに行動する
             action = generateRandomDestination(ban)
 
