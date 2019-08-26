@@ -12,7 +12,7 @@
       <arg name="robot_name" value="blue_bot" />
     </include>
 
-    <node pkg="burger_war" type="enemy.py" name="randomRun" output="screen">
+    <node pkg="burger_war" type="Move.py" name="randomRun" output="screen">
       <param name="rname" value="$(arg robot_name)" />
       <param name="rside" value="$(arg side)" />
     </node>
