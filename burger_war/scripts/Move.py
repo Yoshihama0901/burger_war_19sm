@@ -394,7 +394,7 @@ class RandomBot():
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        #self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
+        self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():

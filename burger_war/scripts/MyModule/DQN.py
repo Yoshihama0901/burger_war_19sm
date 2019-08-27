@@ -15,6 +15,17 @@ from keras.models import Sequential
 from keras.layers import *
 from keras.optimizers import Adam, SGD
 
+# ４次元ベクトルの任意ch内容確認
+def print_state_At(state, index):
+    tmp = ''
+    for i in range(16):
+        for j in range(16):
+            if state[0][i][j][index] < 0 : tmp += str('%5.3f' % state[0][i][j][index])+' '
+            else                         : tmp += str('%6.3f' % state[0][i][j][index])+' '
+        tmp += '\n'
+    print(tmp)
+
+
 # 次の行動を決める
 def action_select(action):
     velocity = 0.5
@@ -84,9 +95,9 @@ def create_unet(size=16, use_skip_connections=True, grayscale_inputs=True):
     
     # output
     x = Conv2D(1, 1)(x)
-    #x = Activation("sigmoid")(x)
-    x = Activation("linear")(x)
-    #x = Activation("tanh")(x)
+    
+    #x = Activation("linear")(x)
+    x = Activation("tanh")(x)
     
     model  = Model(input, x)
     
@@ -166,7 +177,9 @@ class QNetwork:
         
         #self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
         #self.optimizer = Adam()
-        self.optimizer = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        
+        #self.optimizer = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        self.optimizer = SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
         
         self.model.compile(loss=huberloss, optimizer=self.optimizer)
         
@@ -194,10 +207,12 @@ class QNetwork:
                 # 最大の報酬を返す行動を選択する
                 next_action = np.unravel_index(np.argmax(retmainQs), retmainQs.shape)
                 
+                if bot_color == 'r' : print_state_At(targetQN.model.predict(next_state_b), 0)
+                
                 targetQs    = targetQN.model.predict(next_state_b)[0] # (16, 16, 1)
                 targetQs    = np.reshape(targetQs, (16, 16))          # (16, 16, 1)
                 next_reward = targetQs[next_action[0]][next_action[1]]
-                if next_reward > 1 : next_reward = 0.95
+                if next_reward > 1 : next_reward = 0.90
                 
                 target = reward_b + gamma * next_reward
                 
@@ -216,7 +231,7 @@ class QNetwork:
             #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
             for k in range(16):
                 for l in range(16):
-                    if abs(targets[i][k][l]) > 1          : targets[i][k][l] = 0   # １を超えてしまう場合は０を入れておく
+                    if abs(targets[i][k][l]) > 0.95          : targets[i][k][l] = 0.8 # １を超えてしまう場合は０を入れておく
                     if k < 1 or l < 1 or k > 14 or l > 14 : targets[i][k][l] = 0   # 領域外の報酬は０固定
                     #for a in ban:
                     #    if a[0] == k and a[1] == l        : targets[i][k][l] = 0   # 障害物座標の報酬は０固定
@@ -227,7 +242,8 @@ class QNetwork:
             #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
 
         # shiglayさんよりアドバイスいただき、for文の外へ修正しました
-        self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
+        #self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
+        self.model.fit(inputs, targets, epochs=1, verbose=1)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
 
 
 # [3]Experience ReplayとFixed Target Q-Networkを実現するメモリクラス
