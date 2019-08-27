@@ -46,7 +46,8 @@ def get_pos_matrix(x, y, n=16):
     #my_pos  = np.array([self.pos[0], self.pos[1]])           # 現在地点
     pos     = np.array([x, y])                                # 現在地点
     rot     = get_rotation_matrix(-45 * np.pi / 180)          # 45度回転行列の定義
-    rotated = ( np.dot(rot, pos) / fieldScale ) + 0.5         # 45度回転して最大幅1.5で正規化(0-1)
+    #rotated = ( np.dot(rot, pos) / fieldScale ) + 0.5         # 45度回転して最大幅1.5で正規化(0-1)
+    rotated = ( np.dot(rot, pos) + 1 ) / 2                    # 回転を行って0-1の範囲にシフト
     pos_np  = np.zeros([n, n])
     i = int(rotated[0]*n)
     j = int(rotated[1]*n)
@@ -206,6 +207,7 @@ class RandomBot():
         #self.state = np.zeros([1, 16, 16, 7])                        # 状態
         self.state = self.getState()
         
+        self.action = np.array([0, 0])
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -291,16 +293,16 @@ class RandomBot():
         
         self.timer += 1
         
-        # 現在の状態を取得
-        #self.state = self.getState()
-        
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
-        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color)
-        if self.timer == 1 : action = np.array([5, 11])
+        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color, self.action, self.score[0]-self.score[1])
+        if self.timer == 1:
+            action = np.array([5, 11])
+            self.action = action
         
         # 移動先と角度  (中心位置をずらした後に45度反時計周りに回転)
-        pos     = (action - 8) * fieldScale/8                                   # 目的地
+        #pos     = (action - 8) * fieldScale/8                                   # 目的地
+        pos     = (action - 8) / 8.0                                            # 目的地
         rot     = get_rotation_matrix(45 * np.pi / 180)                         # 45度回転行列の定義
         desti   = np.dot(rot, pos)                                              # 45度回転
         yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )      # 移動先の角度
@@ -316,8 +318,9 @@ class RandomBot():
         
         # メモリの更新する
         self.memory.add((self.state, action, reward, next_state))               # メモリの更新する
-        self.state = next_state                                                 # 状態更新
         if abs(reward) == 1 : np.zeros([1, 16, 16, 7])                          # 試合終了時は次の状態はない
+        self.state  = next_state                                                 # 状態更新
+        self.action = action
         
         # Qネットワークの重みを学習・更新する replay
         if self.training == True : learn = 1
@@ -391,7 +394,7 @@ class RandomBot():
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
+        #self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():

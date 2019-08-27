@@ -68,12 +68,12 @@ def create_unet(size=16, use_skip_connections=True, grayscale_inputs=True):
     x = MaxPool2D(2)(block1)
     block2 = create_block(x, 128)
     x = MaxPool2D(2)(block2)
-    block3 = create_block(x, 256)
-    x = MaxPool2D(2)(block3)
+    #block3 = create_block(x, 256)
+    #x = MaxPool2D(2)(block3)
     
-    x = create_block(x, 512)
-    x = Conv2DTranspose(256, kernel_size=2, strides=2)(x)
-    if use_skip_connections: x = Concatenate()([block3, x])
+    #x = create_block(x, 512)
+    #x = Conv2DTranspose(256, kernel_size=2, strides=2)(x)
+    #if use_skip_connections: x = Concatenate()([block3, x])
     x = create_block(x, 256)
     x = Conv2DTranspose(128, kernel_size=2, strides=2)(x)
     if use_skip_connections: x = Concatenate()([block2, x])
@@ -161,8 +161,8 @@ class QNetwork:
     def __init__(self, learning_rate=0.01):
         self.debug_log = True
         
-        #self.model = create_unet()
-        self.model = resnet()
+        self.model = create_unet()
+        #self.model = resnet()
         
         #self.optimizer = Adam(lr=learning_rate)  # 誤差を減らす学習方法はAdam
         #self.optimizer = Adam()
@@ -212,9 +212,14 @@ class QNetwork:
             targets[i] = self.model.predict(state_b)               # Qネットワークの出力
             #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
             
+            # 学習する報酬の手調整
+            #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
             for k in range(16):
                 for l in range(16):
-                    if abs(targets[i][k][l]) > 1 : targets[i][k][l] = 0
+                    if abs(targets[i][k][l]) > 1          : targets[i][k][l] = 0   # １を超えてしまう場合は０を入れておく
+                    if k < 1 or l < 1 or k > 14 or l > 14 : targets[i][k][l] = 0   # 領域外の報酬は０固定
+                    #for a in ban:
+                    #    if a[0] == k and a[1] == l        : targets[i][k][l] = 0   # 障害物座標の報酬は０固定
             
             targets[i][action_b[0]][action_b[1]] = target          # 教師信号
             np.set_printoptions(precision=1)
@@ -247,52 +252,66 @@ class Memory:
         return len(self.buffer)
 
 
-def generateRandomDestination(ban):
-    flag = True
-    while flag:
-        flag   = False
-        action = np.array( [int(3+np.random.rand()*11), int(3+np.random.rand()*11)] )
-        for a in ban:
-            if a[0] == action[0] and a[1] == action[1] : flag = True
-    return action
-
-
 # [4]カートの状態に応じて、行動を決定するクラス
 # アドバイスいただき、引数にtargetQNを使用していたのをmainQNに修正しました
 class Actor:
     def __init__(self):
         self.debug_log = True
 
-    def get_action(self, state, episode, mainQN, bot_color):   # [C]ｔ＋１での行動を返す
+
+    def generateRandomDestination(self):
+        
+        # 移動禁止箇所
+        #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
+        ban = np.array( [ [99,99] ] )
+        
+        flag = True
+        while flag:
+            flag   = False
+            #action = np.array( [int(3+np.random.rand()*11), int(3+np.random.rand()*11)] )
+            action = np.array( [1+int(np.random.rand()*14), int(1+np.random.rand()*14)] )
+            for a in ban:
+                if a[0] == action[0] and a[1] == action[1] : flag = True
+        return action
+
+
+    def get_action(self, state, episode, mainQN, bot_color, action_bf, delta_score):   # [C]ｔ＋１での行動を返す
         # 徐々に最適行動のみをとる、ε-greedy法
         epsilon = 0.001 + 0.9 / (1.0+episode)
         #print(epsilon)
-        epsilon = 0.1
+        epsilon = 0.2
         
         # 移動禁止箇所
-        ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
+        #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
         
         if epsilon <= np.random.uniform(0, 1):
             #if bot_color == 'r' : print('Learned')
             retTargetQs = mainQN.model.predict(state)[0]    # (16, 16, 1)
-            retTargetQs = np.reshape(retTargetQs, (16, 16)) # (16, 16, 1)
+            retTargetQs = np.reshape(retTargetQs, (16, 16)) # (16, 16)
             action      = np.unravel_index(np.argmax(retTargetQs), retTargetQs.shape)
             action      = np.array(action)
             
+            # 学習結果前フィールドと同じで現状負けていたらランダムを入れておく
+            if action[0] == action_bf[0] and action[1] == action_bf[1] and delta_score <= 0 :
+                if bot_color == 'r' : print('Same Action Random')
+                action = self.generateRandomDestination()
+            
+            '''
             # 学習結果が移動禁止箇所だったらランダムを入れておく
             flag   = False
             for a in ban:
                 if a[0] == action[0] and a[1] == action[1] : flag = True
             if flag or (action[0] < 3) or (action[1] < 3) or (action[0] > 13) or (action[1] > 13):
                 if bot_color == 'r' : print('Random flag=', flag, 'action=', action)
-                action = generateRandomDestination(ban)
+                action = self.generateRandomDestination()
             else:
                 if bot_color == 'r' : print('Learned')
+            '''
             
         else:
             if bot_color == 'r' : print('Random')
             # 移動禁止箇所以外へランダムに行動する
-            action = generateRandomDestination(ban)
+            action = self.generateRandomDestination()
 
         return action
 
