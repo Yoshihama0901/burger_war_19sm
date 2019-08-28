@@ -22,7 +22,7 @@ def print_state_At(state, index):
         for j in range(16):
             if state[0][i][j][index] < 0 : tmp += str('%5.3f' % state[0][i][j][index])+' '
             else                         : tmp += str('%6.3f' % state[0][i][j][index])+' '
-        tmp += '\n'
+        if i < 15 : tmp += '\n'
     print(tmp)
 
 
@@ -197,7 +197,6 @@ class QNetwork:
             inputs[i:i + 1] = state_b
             target = reward_b
 
-            #if 1:
             if reward_b == 0:
             #if not np.sum(next_state_b) == 0: # 状態が全部ゼロじゃない場合
                 # 価値計算（DDQNにも対応できるように、行動決定のQネットワークと価値観数のQネットワークは分離）
@@ -206,24 +205,14 @@ class QNetwork:
                 
                 # 最大の報酬を返す行動を選択する
                 next_action = np.unravel_index(np.argmax(retmainQs), retmainQs.shape)
-                
-                if bot_color == 'r' : print_state_At(targetQN.model.predict(next_state_b), 0)
+                #if bot_color == 'r' : print_state_At(targetQN.model.predict(next_state_b), 0)
                 
                 targetQs    = targetQN.model.predict(next_state_b)[0] # (16, 16, 1)
                 targetQs    = np.reshape(targetQs, (16, 16))          # (16, 16, 1)
                 next_reward = targetQs[next_action[0]][next_action[1]]
-                if next_reward > 1 : next_reward = 0.90
                 
                 target = reward_b + gamma * next_reward
                 
-                # 移動不能箇所を指定していたら最低値
-                #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
-                #flag   = False
-                #for a in ban:
-                #    if a[0] == action_b[0] and a[1] == action_b[1] : flag = True
-                #if flag or (action_b[0] < 3) or (action_b[1] < 3) or (action_b[0] > 13) or (action_b[1] > 13):
-                #    target = -1
-
             targets[i] = self.model.predict(state_b)               # Qネットワークの出力
             #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
             
@@ -238,12 +227,11 @@ class QNetwork:
             
             targets[i][action_b[0]][action_b[1]] = target          # 教師信号
             np.set_printoptions(precision=1)
-            if bot_color == 'r' : print(i, reward_b, action_b, target)
-            #if bot_color == 'r' : print(i, reward_b, action_b[0], action_b[1], target, targets[i][action_b[0]])
+            #if bot_color == 'r' : print(i, reward_b, action_b, target)
 
         # shiglayさんよりアドバイスいただき、for文の外へ修正しました
-        #self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
-        self.model.fit(inputs, targets, epochs=1, verbose=1)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
+        self.model.fit(inputs, targets, epochs=1, verbose=0)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
+        #self.model.fit(inputs, targets, epochs=1, verbose=1)  # 初回は時間がかかる epochsは訓練データの反復回数、verbose=0は表示なしの設定
 
 
 # [3]Experience ReplayとFixed Target Q-Networkを実現するメモリクラス
@@ -274,7 +262,7 @@ class Actor:
     def __init__(self):
         self.debug_log = True
 
-
+    # 移動先をランダムに生成
     def generateRandomDestination(self):
         
         # 移動禁止箇所
@@ -290,6 +278,11 @@ class Actor:
                 if a[0] == action[0] and a[1] == action[1] : flag = True
         return action
 
+    # ２次元numpy配列でＮ番目に大きい要素を返す
+    def getIndexAtMaxN(self, input, N):
+        result = np.where(input==np.sort(input.flatten())[-N])
+        result = np.array([ result[0][0], result[1][0] ])
+        return result
 
     def get_action(self, state, episode, mainQN, bot_color, action_bf, delta_score):   # [C]ｔ＋１での行動を返す
         # 徐々に最適行動のみをとる、ε-greedy法
@@ -302,15 +295,20 @@ class Actor:
         
         if epsilon <= np.random.uniform(0, 1):
             #if bot_color == 'r' : print('Learned')
-            retTargetQs = mainQN.model.predict(state)[0]    # (16, 16, 1)
-            retTargetQs = np.reshape(retTargetQs, (16, 16)) # (16, 16)
+            
+            retTargetQs = mainQN.model.predict(state)             # (1, 16, 16, 1)
+            if bot_color == 'r' : print_state_At(retTargetQs, 0)  # 予測結果を表示
+            #retTargetQs = mainQN.model.predict(state)[0]          # (16, 16, 1)
+            retTargetQs = retTargetQs[0]                          # (16, 16, 1)
+            retTargetQs = np.reshape(retTargetQs, (16, 16))       # (16, 16)
             action      = np.unravel_index(np.argmax(retTargetQs), retTargetQs.shape)
             action      = np.array(action)
             
-            # 学習結果前フィールドと同じで現状負けていたらランダムを入れておく
+            # 学習結果前フィールドと同じで現状負けていたら２～５番目の候補のどれかに変更する
             if action[0] == action_bf[0] and action[1] == action_bf[1] and delta_score <= 0 :
-                if bot_color == 'r' : print('Same Action Random')
-                action = self.generateRandomDestination()
+                if bot_color == 'r' : print('Select Except Top Action')
+                action = self.getIndexAtMaxN(retTargetQs, 2+int(np.random.rand()*4))
+                #action = self.generateRandomDestination()
             
             '''
             # 学習結果が移動禁止箇所だったらランダムを入れておく

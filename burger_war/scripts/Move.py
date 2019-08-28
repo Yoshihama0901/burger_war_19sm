@@ -306,7 +306,10 @@ class RandomBot():
         rot     = get_rotation_matrix(45 * np.pi / 180)                         # 45度回転行列の定義
         desti   = np.dot(rot, pos)                                              # 45度回転
         yaw = np.arctan2( (desti[1]-self.pos[1]), (desti[0]-self.pos[0]) )      # 移動先の角度
-        if self.my_color == 'r' : print('****action****', self.my_color, self.timer, action)
+        if self.my_color == 'r' :
+            #print('****Action****', self.timer, action, desti, yaw*360/np.pi)
+            print('*** Action *** Time=%2d,  Position=(%4.2f, %4.2f),  Destination=(%4.2f, %4.2f, %4.0f[deg])' % (self.timer, self.pos[0], self.pos[1], desti[0], desti[1], yaw*360/np.pi))
+            print('')
         
         # Actionに従った行動  目的地の設定 (X, Y, Yaw)
         self.setGoal(desti[0], desti[1], yaw)
