@@ -379,7 +379,8 @@ class RandomBot():
 
         # Stateの戻り値詳細：PENDING, ACTIVE, RECALLED, REJECTED, PREEMPTED, ABORTED, SUCCEEDED, LOST
         #  https://docs.ros.org/diamondback/api/actionlib/html/classactionlib_1_1SimpleClientGoalState.html#a91066f14351d31404a2179da02c518a0a2f87385336ac64df093b7ea61c76fafe
-        state = self.client.send_goal_and_wait(goal, execute_timeout=rospy.Duration(5))
+        #state = self.client.send_goal_and_wait(goal, execute_timeout=rospy.Duration(5))
+        state = self.client.send_goal_and_wait(goal, execute_timeout=rospy.Duration(4))
         #print(self.my_color, "state=", state)
 
         return 0
