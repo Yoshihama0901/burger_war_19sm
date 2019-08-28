@@ -156,7 +156,7 @@ class RandomBot():
         return state
 
 
-    def __init__(self, bot_name, color='r'):
+    def __init__(self, bot_name, color='r', Sim_flag=True):
         self.name     = bot_name                                        # bot name 
         self.vel_pub  = rospy.Publisher('cmd_vel', Twist, queue_size=1) # velocity publisher
         self.sta_pub  = rospy.Publisher("/gazebo/model_states", ModelStates, latch=True) # 初期化用
@@ -165,6 +165,7 @@ class RandomBot():
         self.my_color = color                                           # 自分の色情報
         self.en_color = 'b' if color=='r' else 'r'                      # 相手の色情報
         self.score    = np.zeros(20)                                    # スコア情報(以下詳細)
+        self.sim_flag = Sim_flag
          #  0:自分のスコア, 1:相手のスコア
          #  2:相手後ろ, 3:相手Ｌ, 4:相手Ｒ, 5:自分後ろ, 6:自分Ｌ, 7:自分Ｒ
          #  8:Tomato_N, 9:Tomato_S, 10:Omelette_N, 11:Omelette_S, 12:Pudding_N, 13:Pudding_S
@@ -183,7 +184,7 @@ class RandomBot():
         self.image_sub = rospy.Subscriber(camera_resource_name, Image, self.imageCallback, queue_size=10)
         self.debug_log_fname = None
         #self.debug_log_fname = 'log-' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + '-' + self.my_color + '.csv'
-        self.training = True
+        self.training = True and self.sim_flag
         self.debug_use_gazebo_my_pos = False
         self.debug_use_gazebo_enemy_pos = False
         self.debug_gazebo_my_x = np.nan
@@ -295,7 +296,7 @@ class RandomBot():
         
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
-        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color, self.action, self.score[0]-self.score[1])
+        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color, self.action, self.score[0]-self.score[1], self.sim_flag)
         if self.timer == 1:
             action = np.array([5, 11])
             self.action = action
@@ -525,15 +526,21 @@ class RandomBot():
 
 if __name__ == '__main__':
     
+    # sim環境用のフラグ。本番(実機動作)では、
+    #   ・リセット動作を行わない
+    #   ・学習を行わない
+    #   ・確率でのランダム動作を行わない
+    Sim_flag = False
+    
     rname = rosparam.get_param('randomRun/rname')
     rside = rosparam.get_param('randomRun/rside')
     if rname == 'red_bot' or rside == 'r':
         color = 'r'
     else:
         color = 'b'
-
+    
     rospy.init_node('IntegAI_run')    # 初期化宣言 : このソフトウェアは"IntegAI_run"という名前
-    bot = RandomBot('Team Integ AI', color=color)
+    bot = RandomBot('Team Integ AI', color=color, Sim_flag=Sim_flag)
     
     bot.strategy()
 
