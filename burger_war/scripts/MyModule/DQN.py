@@ -220,8 +220,8 @@ class QNetwork:
             #ban = np.array( [ [4,8], [7,8], [7,7], [8,12], [8,9], [8,8], [8,7], [8,4], [9,9], [9,8], [12,8]  ] )
             for k in range(16):
                 for l in range(16):
-                    if abs(targets[i][k][l]) > 0.95          : targets[i][k][l] = 0.8 # １を超えてしまう場合は０を入れておく
-                    if k < 1 or l < 1 or k > 14 or l > 14 : targets[i][k][l] = 0   # 領域外の報酬は０固定
+                    if abs(targets[i][k][l]) > 0.95          : targets[i][k][l] = targets[i][k][l]*0.8  # 大きすぎる場合は少し調整を行う
+                    if k < 1 or l < 1 or k > 14 or l > 14 : targets[i][k][l] = 0                        # 領域外の報酬は０固定
                     #for a in ban:
                     #    if a[0] == k and a[1] == l        : targets[i][k][l] = 0   # 障害物座標の報酬は０固定
             
@@ -288,7 +288,7 @@ class Actor:
         
         # 徐々に最適行動のみをとる、ε-greedy法
         #epsilon = 0.001 + 0.9 / (1.0+episode)
-        if sim_flag : epsilon = 0.2  # 学習時のランダム係数
+        if sim_flag : epsilon = 0.1  # 学習時のランダム係数
         else        : epsilon = 0.0  # 実機ではランダム動作を行わない
         
         # 移動禁止箇所
