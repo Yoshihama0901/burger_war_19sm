@@ -365,7 +365,7 @@ class RandomBot():
 
         goal = MoveBaseGoal()
         name = 'red_bot' if self.my_color == 'r' else 'blue_bot'
-        goal.target_pose.header.frame_id = name + "/map"
+        goal.target_pose.header.frame_id = name + '/map' if self.sim_flag == True else 'map'
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose.position.x = x
         goal.target_pose.pose.position.y = y
@@ -399,7 +399,10 @@ class RandomBot():
         self.targetQN = DQN.QNetwork(learning_rate=learning_rate)   # 価値を計算するQネットワーク
         self.memory   = DQN.Memory(max_size=memory_size)
         self.actor    = DQN.Actor()
-        self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
+        if self.sim_flag == True:
+            self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
+        else:
+            self.mainQN.model.load_weights('../wss/Yoshihama0901/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():
