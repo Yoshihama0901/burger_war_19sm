@@ -402,7 +402,7 @@ class RandomBot():
         if self.sim_flag == True:
             self.mainQN.model.load_weights('../catkin_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         else:
-            self.mainQN.model.load_weights('../wss/Yoshihama0901/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
+            self.mainQN.model.load_weights('../wss/Yoshihama0901_ws/src/burger_war/burger_war/scripts/weight.hdf5')     # 重みの読み込み
         
         self.targetQN.model.set_weights(self.mainQN.model.get_weights())
         while not rospy.is_shutdown():
