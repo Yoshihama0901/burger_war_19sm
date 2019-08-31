@@ -209,6 +209,7 @@ class RandomBot():
         self.state = self.getState()
         
         self.action = np.array([0, 0])
+        self.action2 = np.array([0, 0])
 
     # スコア情報の更新(war_stateのコールバック関数)
     def callback_war_state(self, data):
@@ -296,9 +297,10 @@ class RandomBot():
         
         # 行動を決定する
         #action, linear, angle = self.actor.get_action(self.state, 1, self.mainQN)
-        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color, self.action, self.score[0]-self.score[1], self.sim_flag)
+        action = self.actor.get_action(self.state, self.timer, self.mainQN, self.my_color, self.action, self.action2, self.score[0]-self.score[1], self.sim_flag)
         if self.timer == 1:
             action = np.array([5, 11])
+            self.action2 = self.action
             self.action = action
         
         # 移動先と角度  (中心位置をずらした後に45度反時計周りに回転)
@@ -324,6 +326,7 @@ class RandomBot():
         self.memory.add((self.state, action, reward, next_state))               # メモリの更新する
         if abs(reward) == 1 : np.zeros([1, 16, 16, 7])                          # 試合終了時は次の状態はない
         self.state  = next_state                                                 # 状態更新
+        self.action2 = self.action
         self.action = action
         
         # Qネットワークの重みを学習・更新する replay
