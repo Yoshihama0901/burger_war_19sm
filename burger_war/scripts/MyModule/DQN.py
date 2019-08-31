@@ -308,7 +308,7 @@ class Actor:
             # 学習結果前フィールドと同じで現状負けていたら２～５番目の候補のどれかに変更する
             if ((action[0] == action_bf[0] and action[1] == action_bf[1]) or (action[0] == action_bf2[0] and action[1] == action_bf2[1])) and delta_score <= 0 :
                 if bot_color == 'r' : print('Select Except Top Action')
-                action = self.getIndexAtMaxN(retTargetQs, 2+int(np.random.rand()*4))
+                action = self.getIndexAtMaxN(retTargetQs, 2+int(np.random.rand()*9))
                 #action = self.generateRandomDestination()
             
             '''
